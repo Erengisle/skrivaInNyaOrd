@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="sv">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Svåra ord</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        background: #f3f6ff;
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+      }
+      .card {
+        background: #fff;
+        width: min(620px, 94vw);
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        padding: 24px;
+      }
+      h1 { margin: 0 0 8px; font-size: 1.4rem; }
+      p { margin: 0 0 16px; color: #374151; }
+      label { display: block; font-weight: 600; margin-bottom: 6px; }
+      input {
+        width: 100%;
+        padding: 11px 12px;
+        border-radius: 10px;
+        border: 1px solid #cbd5e1;
+        font-size: 1rem;
+        margin-bottom: 12px;
+        box-sizing: border-box;
+      }
+      .row { display: flex; gap: 10px; flex-wrap: wrap; }
+      button {
+        border: 0;
+        border-radius: 10px;
+        padding: 11px 16px;
+        color: #fff;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .primary { background: #2563eb; }
+      .secondary { background: #4b5563; }
+      .danger { background: #dc2626; }
+      ul {
+        margin: 10px 0 0;
+        padding-left: 18px;
+        max-height: 200px;
+        overflow: auto;
+      }
+      #message { margin-top: 12px; font-weight: 600; }
+      .ok { color: #166534; }
+      .err { color: #991b1b; }
+      .muted { color: #6b7280; font-size: 0.95rem; }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <h1>Samla svåra ord</h1>
+      <p>Lägg till <strong>ett ord i taget</strong>, men du kan lägga till många ord innan du skickar.</p>
+
+      <label for="student">Namn (valfritt)</label>
+      <input id="student" maxlength="80" />
+
+      <label for="word">Ord</label>
+      <input id="word" maxlength="40" pattern="^[A-Za-zÅÄÖåäöÉéÜü]+$" />
+
+      <div class="row">
+        <button id="addBtn" class="secondary" type="button">Lägg till ord</button>
+        <button id="saveBtn" class="primary" type="button">Skicka alla ord</button>
+        <button id="clearBtn" class="danger" type="button">Rensa lista</button>
+      </div>
+
+      <p class="muted" id="count">0 ord i listan.</p>
+      <ul id="wordList"></ul>
+      <div id="message" aria-live="polite"></div>
+    </main>
+
+    <script>
+      const wordInput = document.getElementById('word');
+      const studentInput = document.getElementById('student');
+      const addBtn = document.getElementById('addBtn');
+      const saveBtn = document.getElementById('saveBtn');
+      const clearBtn = document.getElementById('clearBtn');
+      const wordListEl = document.getElementById('wordList');
+      const countEl = document.getElementById('count');
+      const message = document.getElementById('message');
+
+      const pendingWords = [];
+
+      function validateOneWord(value) {
+        return /^[A-Za-zÅÄÖåäöÉéÜü]+$/.test(value);
+      }
+
+      function setMessage(text, ok) {
+        message.textContent = text;
+        message.className = ok ? 'ok' : 'err';
+      }
+
+      function renderList() {
+        wordListEl.innerHTML = '';
+        pendingWords.forEach((word, index) => {
+          const li = document.createElement('li');
+          li.textContent = word + ' ';
+
+          const remove = document.createElement('button');
+          remove.textContent = 'Ta bort';
+          remove.type = 'button';
+          remove.className = 'danger';
+          remove.style.marginLeft = '8px';
+          remove.style.padding = '4px 8px';
+          remove.onclick = () => {
+            pendingWords.splice(index, 1);
+            renderList();
+          };
+
+          li.appendChild(remove);
+          wordListEl.appendChild(li);
+        });
+
+        countEl.textContent = `${pendingWords.length} ord i listan.`;
+      }
+
+      function addCurrentWord() {
+        const word = wordInput.value.trim().toLowerCase();
+
+        if (!validateOneWord(word)) {
+          setMessage('Skriv exakt ett ord utan mellanslag.', false);
+          return;
+        }
+
+        pendingWords.push(word);
+        wordInput.value = '';
+        wordInput.focus();
+        setMessage('Ordet lades till i listan.', true);
+        renderList();
+      }
+
+      addBtn.addEventListener('click', addCurrentWord);
+
+      wordInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          addCurrentWord();
+        }
+      });
+
+      clearBtn.addEventListener('click', () => {
+        pendingWords.length = 0;
+        renderList();
+        setMessage('Listan rensades.', true);
+      });
+
+      saveBtn.addEventListener('click', () => {
+        if (!pendingWords.length) {
+          setMessage('Listan är tom. Lägg till minst ett ord.', false);
+          return;
+        }
+
+        const student = studentInput.value.trim();
+        const words = pendingWords.slice();
+
+        saveBtn.disabled = true;
+        addBtn.disabled = true;
+        clearBtn.disabled = true;
+        setMessage('Sparar…', true);
+
+        google.script.run
+          .withSuccessHandler((result) => {
+            setMessage(result.message, result.ok);
+            if (result.ok) {
+              pendingWords.length = 0;
+              renderList();
+              wordInput.focus();
+            }
+            saveBtn.disabled = false;
+            addBtn.disabled = false;
+            clearBtn.disabled = false;
+          })
+          .withFailureHandler((err) => {
+            setMessage('Något gick fel: ' + err.message, false);
+            saveBtn.disabled = false;
+            addBtn.disabled = false;
+            clearBtn.disabled = false;
+          })
+          .submitWords({ words, student });
+      });
+    </script>
+  </body>
+</html>
