@@ -23,6 +23,8 @@ const VERB_GROUP_FROM_IMPERATIV = {
   var: '4', se: '4', gå: '4'
 };
 
+const LANGUAGES = ['sv', 'en', 'es', 'ar', 'ur', 'tr', 'zh', 'th', 'ti', 'mn', 'uk'];
+
 function doGet(e) {
   const view = e && e.parameter && e.parameter.view;
 
@@ -158,7 +160,11 @@ function skrivUtOversikt_(ss, rows) {
 function initieraOrdbank() {
   const ss = SpreadsheetApp.getActive();
   const sheet = hamtaEllerSkapaBlad_(ss, CONFIG.WORDBANK_SHEET);
-  const headers = ['lemma', 'ordklass', 'frekvens', 'deklination', 'verbgrupp', 'infinitiv', 'imperativ', 'presens', 'preteritum', 'supinum', 'sv', 'en', 'ar', 'uk'];
+  const headers = [
+    'lemma', 'ordklass', 'frekvens', 'deklination', 'verbgrupp',
+    'infinitiv', 'imperativ', 'presens', 'preteritum', 'supinum',
+    ...LANGUAGES
+  ];
   sheet.clear();
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight('bold');
 }
@@ -174,13 +180,16 @@ function byggOrdbankFranOversikt() {
   if (values.length < 2) return;
 
   const wordbank = ss.getSheetByName(CONFIG.WORDBANK_SHEET);
+  const emptyTranslations = LANGUAGES.map(() => '');
   const rows = values.slice(1).map(r => {
     const lemma = r[0] || '';
-    return [lemma, r[1] || '', r[2] || 0, r[3] || '', r[4] || '', r[5] || '', r[6] || '', r[7] || '', r[8] || '', r[9] || '', lemma, '', '', ''];
+    const langValues = emptyTranslations.slice();
+    langValues[0] = lemma; // sv = lemma as placeholder
+    return [lemma, r[1] || '', r[2] || 0, r[3] || '', r[4] || '', r[5] || '', r[6] || '', r[7] || '', r[8] || '', r[9] || '', ...langValues];
   });
 
   wordbank.getRange(2, 1, rows.length, rows[0].length).setValues(rows);
-  wordbank.autoResizeColumns(1, 14);
+  wordbank.autoResizeColumns(1, 10 + LANGUAGES.length);
 }
 
 function hamtaOrdbankData(filters) {
@@ -196,23 +205,29 @@ function hamtaOrdbankData(filters) {
   for (const key of ['lemma', 'ordklass', 'frekvens', 'deklination', 'verbgrupp']) {
     idx[key] = headers.indexOf(key);
   }
+  const langIdx = {};
+  LANGUAGES.forEach(lang => { langIdx[lang] = headers.indexOf(lang); });
 
   const language = ((filters && filters.language) || 'sv').toLowerCase();
   const ordklassFilter = ((filters && filters.ordklass) || '').toLowerCase();
   const q = ((filters && filters.q) || '').toLowerCase();
-  const translationIdx = headers.indexOf(language);
 
   return values.slice(1)
     .map(r => {
-      const get = (key) => idx[key] >= 0 ? r[idx[key]] : '';
-      const translation = translationIdx >= 0 ? r[translationIdx] : (idx.lemma >= 0 ? r[idx.lemma] : '');
+      const get = key => idx[key] >= 0 ? r[idx[key]] : '';
+      const translations = {};
+      LANGUAGES.forEach(lang => {
+        translations[lang] = langIdx[lang] >= 0 ? (r[langIdx[lang]] || '') : '';
+      });
+      const translation = translations[language] || translations.sv || get('lemma');
       return {
         lemma: get('lemma'),
         ordklass: get('ordklass'),
         frekvens: get('frekvens'),
         deklination: get('deklination'),
         verbgrupp: get('verbgrupp'),
-        translation
+        translation,
+        translations
       };
     })
     .filter(row => !ordklassFilter || row.ordklass.toLowerCase() === ordklassFilter)

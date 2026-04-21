@@ -16,7 +16,7 @@
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 12px;
-      max-width: 900px;
+      max-width: 960px;
       margin: auto;
     }
 
@@ -27,26 +27,53 @@
       box-shadow: 0 6px 18px rgba(0,0,0,0.08);
     }
 
-    h2 { margin-top: 0; }
+    h2 { margin-top: 0; font-size: 1rem; color: #374151; text-transform: uppercase; letter-spacing: 0.05em; }
+    h3 { margin: 0 0 8px; font-size: 0.95rem; color: #2563eb; }
 
     table { width: 100%; border-collapse: collapse; }
+    td, th { text-align: left; padding: 6px; border-bottom: 1px solid #eee; }
 
-    td, th {
-      text-align: left;
-      padding: 6px;
-      border-bottom: 1px solid #eee;
+    .big { font-size: 2.5rem; font-weight: bold; color: #2563eb; }
+
+    .word-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 16px;
+      margin-top: 4px;
     }
 
-    .big {
-      font-size: 2rem;
-      font-weight: bold;
+    .group-row { margin-bottom: 6px; font-size: 0.9rem; }
+    .group-label { font-weight: 600; color: #374151; margin-right: 6px; }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .card-header h2 { margin: 0; }
+
+    .refresh-btn {
+      padding: 4px 12px;
+      border: none;
+      border-radius: 6px;
+      background: #e0e7ff;
       color: #2563eb;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.85rem;
     }
+
+    .refresh-btn:hover { background: #c7d2fe; }
+
+    .muted { color: #6b7280; font-size: 0.85rem; }
   </style>
 </head>
 
 <body>
   <div class="grid">
+
     <div class="card">
       <h2>Totalt antal ord</h2>
       <div id="total" class="big">...</div>
@@ -58,18 +85,39 @@
     </div>
 
     <div class="card" style="grid-column: span 2;">
+      <div class="card-header">
+        <h2>Ordanalys</h2>
+        <button class="refresh-btn" id="refresh-words">Uppdatera</button>
+      </div>
+      <div id="word-status" class="muted"></div>
+      <div class="word-grid">
+        <div>
+          <h3>Verb</h3>
+          <div id="verb-groups"></div>
+        </div>
+        <div>
+          <h3>Substantiv</h3>
+          <div id="noun-groups"></div>
+        </div>
+        <div>
+          <h3>Övriga</h3>
+          <div id="other-words"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="grid-column: span 2;">
       <h2>Senaste inlämningar</h2>
       <table>
-        <thead>
-          <tr><th>Tid</th><th>Elev</th><th>Ord</th></tr>
-        </thead>
+        <thead><tr><th>Tid</th><th>Elev</th><th>Ord</th></tr></thead>
         <tbody id="latest"></tbody>
       </table>
     </div>
+
   </div>
 
   <script>
-    function render(data) {
+    function renderStats(data) {
       document.getElementById('total').textContent = data.totalWords;
 
       const studentsDiv = document.getElementById('students');
@@ -95,12 +143,84 @@
       });
     }
 
-    function loadDashboard() {
-      google.script.run.withSuccessHandler(render).getDashboardData();
+    function groupBy(items, key) {
+      return items.reduce((acc, item) => {
+        const k = item[key] || 'okänd';
+        (acc[k] = acc[k] || []).push(item);
+        return acc;
+      }, {});
     }
 
-    loadDashboard();
-    setInterval(loadDashboard, 5000);
+    function renderWordGroup(containerId, groups, prefix) {
+      const container = document.getElementById(containerId);
+      container.innerHTML = '';
+      const entries = Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0], 'sv'));
+      if (!entries.length) { container.textContent = '–'; return; }
+      entries.forEach(([key, items]) => {
+        const div = document.createElement('div');
+        div.className = 'group-row';
+        const label = document.createElement('span');
+        label.className = 'group-label';
+        label.textContent = `${prefix} ${key}:`;
+        div.appendChild(label);
+        div.appendChild(document.createTextNode(items.map(w => w.lemma).join(', ')));
+        container.appendChild(div);
+      });
+    }
+
+    function renderWords(words) {
+      document.getElementById('word-status').textContent = '';
+      const verbs  = words.filter(w => w.ordklass === 'verb');
+      const nouns  = words.filter(w => w.ordklass === 'substantiv');
+      const others = words.filter(w => w.ordklass !== 'verb' && w.ordklass !== 'substantiv');
+
+      renderWordGroup('verb-groups', groupBy(verbs, 'verbgrupp'), 'Grupp');
+      renderWordGroup('noun-groups', groupBy(nouns, 'deklination'), 'Dekl.');
+
+      const otherDiv = document.getElementById('other-words');
+      otherDiv.innerHTML = '';
+      if (!others.length) { otherDiv.textContent = '–'; return; }
+      Object.entries(groupBy(others, 'ordklass')).sort().forEach(([cls, ws]) => {
+        const div = document.createElement('div');
+        div.className = 'group-row';
+        const label = document.createElement('span');
+        label.className = 'group-label';
+        label.textContent = `${cls}:`;
+        div.appendChild(label);
+        div.appendChild(document.createTextNode(ws.map(w => w.lemma).join(', ')));
+        otherDiv.appendChild(div);
+      });
+    }
+
+    function loadStats() {
+      google.script.run.withSuccessHandler(renderStats).getDashboardData();
+    }
+
+    function loadWords() {
+      const status = document.getElementById('word-status');
+      status.textContent = 'Laddar...';
+      google.script.run
+        .withSuccessHandler(words => {
+          if (!words.length) {
+            status.textContent = 'Inga ord ännu — kör "Uppdatera översikt" i Sheet-menyn först.';
+            ['verb-groups', 'noun-groups', 'other-words'].forEach(id => {
+              document.getElementById(id).textContent = '–';
+            });
+          } else {
+            renderWords(words);
+          }
+        })
+        .withFailureHandler(() => {
+          status.textContent = 'Kunde inte hämta orddata.';
+        })
+        .getDashboardWords();
+    }
+
+    document.getElementById('refresh-words').addEventListener('click', loadWords);
+
+    loadStats();
+    loadWords();
+    setInterval(loadStats, 5000);
   </script>
 </body>
 </html>
