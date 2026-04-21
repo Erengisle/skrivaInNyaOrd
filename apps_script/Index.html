@@ -1,90 +1,126 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <base target="_top">
-    <style>
-      body {
-        font-family: Arial, sans-serif;
-        background: #f4f6f8;
-        display: flex;
-        justify-content: center;
-        padding-top: 60px;
+<head>
+  <base target="_top">
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      background: #f3f6ff;
+      display: grid;
+      place-items: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+
+    .card {
+      background: white;
+      padding: 24px;
+      border-radius: 16px;
+      width: min(520px, 92vw);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+    }
+
+    h1 {
+      margin-top: 0;
+    }
+
+    input, textarea {
+      width: 100%;
+      padding: 10px;
+      margin: 8px 0;
+      border-radius: 10px;
+      border: 1px solid #cbd5e1;
+      font-size: 1rem;
+      box-sizing: border-box;
+    }
+
+    textarea {
+      min-height: 120px;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      background: #2563eb;
+      color: white;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #1d4ed8;
+    }
+
+    #status {
+      margin-top: 10px;
+      font-weight: 600;
+      text-align: center;
+    }
+
+    .hint {
+      font-size: 0.9rem;
+      color: #6b7280;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="card">
+    <h1>Svåra ord</h1>
+
+    <input id="student" placeholder="Ditt namn">
+
+    <textarea id="words" placeholder="Skriv flera ord separerade med mellanslag eller kommatecken"></textarea>
+
+    <button onclick="save()">Skicka ord</button>
+
+    <div id="status"></div>
+
+    <p class="hint">Du kan skriva flera ord och skicka alla samtidigt.</p>
+  </div>
+
+  <script>
+    function tokenize(text) {
+      return text
+        .toLowerCase()
+        .replace(/[.,;:!?]/g, ' ')
+        .split(/\s+/)
+        .filter(Boolean);
+    }
+
+    function save() {
+      const student = document.getElementById("student").value.trim();
+      const words = tokenize(document.getElementById("words").value);
+
+      const status = document.getElementById("status");
+
+      if (!student) {
+        status.innerText = "Skriv ditt namn";
+        return;
       }
 
-      .card {
-        background: white;
-        padding: 25px;
-        border-radius: 12px;
-        box-shadow: 0 6px 20px rgba(0,0,0,0.1);
-        width: 320px;
+      if (!words.length) {
+        status.innerText = "Skriv minst ett ord";
+        return;
       }
 
-      h2 {
-        margin-top: 0;
-        text-align: center;
-      }
+      status.innerText = "Sparar...";
 
-      input {
-        width: 100%;
-        padding: 10px;
-        margin: 8px 0;
-        border: 1px solid #ddd;
-        border-radius: 8px;
-        box-sizing: border-box;
-      }
+      google.script.run
+        .withSuccessHandler(res => {
+          status.innerText = res.message;
 
-      button {
-        width: 100%;
-        padding: 10px;
-        background: #4a90e2;
-        color: white;
-        border: none;
-        border-radius: 8px;
-        cursor: pointer;
-        margin-top: 10px;
-      }
-
-      button:hover {
-        background: #357ab8;
-      }
-
-      #status {
-        margin-top: 10px;
-        text-align: center;
-        font-size: 14px;
-      }
-    </style>
-  </head>
-
-  <body>
-    <div class="card">
-      <h2>Skriv nytt ord</h2>
-
-      <input type="text" id="name" placeholder="Ditt namn">
-      <input type="text" id="word" placeholder="Skriv ett ord">
-
-      <button onclick="save()">Spara</button>
-
-      <div id="status"></div>
-    </div>
-
-    <script>
-      function save() {
-        const name = document.getElementById("name").value;
-        const word = document.getElementById("word").value;
-
-        document.getElementById("status").innerText = "Sparar...";
-
-        google.script.run
-          .withSuccessHandler(function(response) {
-            document.getElementById("status").innerText = "✔ " + response;
-            document.getElementById("word").value = "";
-          })
-          .withFailureHandler(function(error) {
-            document.getElementById("status").innerText = "❌ " + error.message;
-          })
-          .saveWord(name, word);
-      }
-    </script>
-  </body>
+          if (res.ok) {
+            document.getElementById("words").value = "";
+          }
+        })
+        .withFailureHandler(err => {
+          status.innerText = "Fel: " + err.message;
+        })
+        .submitWords({ student, words });
+    }
+  </script>
+</body>
 </html>
