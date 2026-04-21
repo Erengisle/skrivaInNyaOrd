@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="sv">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Svåra ord</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        background: #f3f6ff;
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+      }
+      .card {
+        background: #fff;
+        width: min(680px, 94vw);
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        padding: 24px;
+      }
+      h1 { margin: 0 0 8px; font-size: 1.4rem; }
+      p { margin: 0 0 16px; color: #374151; }
+      label { display: block; font-weight: 600; margin-bottom: 6px; }
+      input, textarea {
+        width: 100%;
+        padding: 11px 12px;
+        border-radius: 10px;
+        border: 1px solid #cbd5e1;
+        font-size: 1rem;
+        margin-bottom: 12px;
+        box-sizing: border-box;
+      }
+      textarea { min-height: 120px; resize: vertical; }
+      .row { display: flex; gap: 10px; flex-wrap: wrap; }
+      button {
+        border: 0;
+        border-radius: 10px;
+        padding: 11px 16px;
+        color: #fff;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .primary { background: #2563eb; }
+      .danger { background: #dc2626; }
+      #message { margin-top: 12px; font-weight: 600; }
+      .ok { color: #166534; }
+      .err { color: #991b1b; }
+      .muted { color: #6b7280; font-size: 0.95rem; }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <h1>Samla svåra ord</h1>
+      <p>Skriv ditt <strong>förnamn</strong> och sedan flera ord i rutan nedan.</p>
+      <p class="muted">Skriv orden med mellanslag mellan varje ord. Punkt/kommatecken fungerar också (de rensas bort automatiskt).</p>
+
+      <label for="student">Förnamn (obligatoriskt)</label>
+      <input id="student" maxlength="80" required placeholder="t.ex. Sara" />
+
+      <label for="words">Ord (separera med mellanslag)</label>
+      <textarea id="words" maxlength="3000" placeholder="ord1 ord2 ord3"></textarea>
+
+      <div class="row">
+        <button id="saveBtn" class="primary" type="button">Skicka ord</button>
+        <button id="clearBtn" class="danger" type="button">Rensa</button>
+      </div>
+
+      <div id="preview" class="muted"></div>
+      <div id="message" aria-live="polite"></div>
+    </main>
+
+    <script>
+      const studentInput = document.getElementById('student');
+      const wordsInput = document.getElementById('words');
+      const saveBtn = document.getElementById('saveBtn');
+      const clearBtn = document.getElementById('clearBtn');
+      const preview = document.getElementById('preview');
+      const message = document.getElementById('message');
+
+      function setMessage(text, ok) {
+        message.textContent = text;
+        message.className = ok ? 'ok' : 'err';
+      }
+
+      function tokenize(raw) {
+        return raw
+          .toLowerCase()
+          .replace(/[.,;:!?()\[\]{}"'“”‘’]/g, ' ')
+          .split(/\s+/)
+          .map((w) => w.trim())
+          .filter(Boolean);
+      }
+
+      function isValidFirstName(value) {
+        return /^[A-Za-zÅÄÖåäöÉéÜü-]+$/.test(value);
+      }
+
+      function refreshPreview() {
+        const words = tokenize(wordsInput.value);
+        preview.textContent = `${words.length} ord hittades.`;
+      }
+
+      wordsInput.addEventListener('input', refreshPreview);
+
+      clearBtn.addEventListener('click', () => {
+        wordsInput.value = '';
+        refreshPreview();
+        setMessage('Rensat.', true);
+      });
+
+      saveBtn.addEventListener('click', () => {
+        const student = studentInput.value.trim();
+        const words = tokenize(wordsInput.value);
+
+        if (!isValidFirstName(student)) {
+          setMessage('Skriv ett giltigt förnamn (bokstäver och ev. bindestreck).', false);
+          return;
+        }
+
+        if (!words.length) {
+          setMessage('Skriv minst ett ord.', false);
+          return;
+        }
+
+        saveBtn.disabled = true;
+        clearBtn.disabled = true;
+        setMessage('Sparar…', true);
+
+        google.script.run
+          .withSuccessHandler((result) => {
+            setMessage(result.message, result.ok);
+            if (result.ok) {
+              wordsInput.value = '';
+              refreshPreview();
+              wordsInput.focus();
+            }
+            saveBtn.disabled = false;
+            clearBtn.disabled = false;
+          })
+          .withFailureHandler((err) => {
+            setMessage('Något gick fel: ' + err.message, false);
+            saveBtn.disabled = false;
+            clearBtn.disabled = false;
+          })
+          .submitWords({ words, student });
+      });
+
+      refreshPreview();
+    </script>
+  </body>
+</html>
