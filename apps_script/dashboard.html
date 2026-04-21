@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      background: #f3f6ff;
+      margin: 0;
+      padding: 20px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      max-width: 900px;
+      margin: auto;
+    }
+
+    .card {
+      background: white;
+      padding: 16px;
+      border-radius: 12px;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+    }
+
+    h2 {
+      margin-top: 0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    td, th {
+      text-align: left;
+      padding: 6px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .big {
+      font-size: 2rem;
+      font-weight: bold;
+      color: #2563eb;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="grid">
+
+    <div class="card">
+      <h2>Total antal ord</h2>
+      <div id="total" class="big">...</div>
+    </div>
+
+    <div class="card">
+      <h2>Elever</h2>
+      <div id="students"></div>
+    </div>
+
+    <div class="card" style="grid-column: span 2;">
+      <h2>Senaste inlämningar</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Tid</th>
+            <th>Elev</th>
+            <th>Ord</th>
+          </tr>
+        </thead>
+        <tbody id="latest"></tbody>
+      </table>
+    </div>
+
+  </div>
+
+  <script>
+    function loadDashboard() {
+      google.script.run.withSuccessHandler(render).getDashboardData();
+    }
+
+    function render(data) {
+      document.getElementById("total").innerText = data.totalWords;
+
+      // per elev
+      const studentsDiv = document.getElementById("students");
+      studentsDiv.innerHTML = "";
+
+      Object.entries(data.perStudent)
+        .sort((a,b) => b[1] - a[1])
+        .forEach(([name, count]) => {
+          const div = document.createElement("div");
+          div.textContent = `${name}: ${count} ord`;
+          studentsDiv.appendChild(div);
+        });
+
+      // senaste
+      const tbody = document.getElementById("latest");
+      tbody.innerHTML = "";
+
+      data.lastEntries.forEach(e => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${e.time}</td>
+          <td>${e.student}</td>
+          <td>${e.word}</td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    loadDashboard();
+    setInterval(loadDashboard, 5000); // auto-refresh
+  </script>
+
+</body>
+</html>
