@@ -1,0 +1,7 @@
+const CONFIG = {
+  INPUT_SHEET: "Svar",
+  LOG_SHEET: "Logg",
+  TIMESTAMP_COLUMN: 1,
+  NAME_COLUMN: 2,
+  WORD_COLUMN: 3
+};
