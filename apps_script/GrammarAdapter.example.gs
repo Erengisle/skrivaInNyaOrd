@@ -354,5 +354,129 @@ function onOpen() {
     .addSeparator()
     .addItem('Skapa tom Ordbank', 'initieraOrdbank')
     .addItem('Bygg Ordbank från Översikt', 'byggOrdbankFranOversikt')
+    .addSeparator()
+    .addItem('Översätt ord med AI', 'oversattAllaOrd')
+    .addItem('Ange API-nyckel', 'sattApiNyckel')
     .addToUi();
+}
+
+// ── AI-översättning ─────────────────────────────────────────────────────────
+
+const LANGUAGE_NAMES_FOR_API = {
+  en: 'English', es: 'Spanish', ar: 'Arabic', ur: 'Urdu',
+  tr: 'Turkish', zh: 'Mandarin Chinese', th: 'Thai',
+  ti: 'Tigrinya', mn: 'Mongolian', uk: 'Ukrainian'
+};
+
+function sattApiNyckel() {
+  const ui = SpreadsheetApp.getUi();
+  const result = ui.prompt('Anthropic API-nyckel', 'Klistra in din API-nyckel:', ui.ButtonSet.OK_CANCEL);
+  if (result.getSelectedButton() === ui.Button.OK) {
+    PropertiesService.getScriptProperties().setProperty('CLAUDE_API_KEY', result.getResponseText().trim());
+    ui.alert('API-nyckeln sparad.');
+  }
+}
+
+function oversattAllaOrd() {
+  const apiKey = PropertiesService.getScriptProperties().getProperty('CLAUDE_API_KEY');
+  if (!apiKey) {
+    SpreadsheetApp.getUi().alert('Lägg till din API-nyckel via Ordverktyg → Ange API-nyckel.');
+    return;
+  }
+
+  const ss = SpreadsheetApp.getActive();
+  const sheet = ss.getSheetByName(CONFIG.WORDBANK_SHEET);
+  if (!sheet) {
+    SpreadsheetApp.getUi().alert('Kör "Bygg Ordbank från Översikt" först.');
+    return;
+  }
+
+  const values = sheet.getDataRange().getValues();
+  if (values.length < 2) return;
+
+  const headers = values[0].map(h => h.toString().toLowerCase());
+  const lemmaIdx = headers.indexOf('lemma');
+  const langIdx = {};
+  LANGUAGES.forEach(lang => { langIdx[lang] = headers.indexOf(lang); });
+
+  const wordsToTranslate = [];
+  for (let i = 1; i < values.length; i++) {
+    const lemma = (values[i][lemmaIdx] || '').toString().trim();
+    if (!lemma) continue;
+    const needsTranslation = Object.keys(LANGUAGE_NAMES_FOR_API).some(lang => {
+      const idx = langIdx[lang];
+      return idx >= 0 && !values[i][idx];
+    });
+    if (needsTranslation) wordsToTranslate.push({ rowIndex: i, lemma });
+  }
+
+  if (!wordsToTranslate.length) {
+    ss.toast('Alla ord är redan översatta.', 'Klar', 3);
+    return;
+  }
+
+  const BATCH_SIZE = 20;
+  for (let b = 0; b < wordsToTranslate.length; b += BATCH_SIZE) {
+    const batch = wordsToTranslate.slice(b, b + BATCH_SIZE);
+    const results = anropaClaudeBatch_(apiKey, batch.map(w => w.lemma));
+
+    batch.forEach(({ rowIndex, lemma }) => {
+      const t = results[lemma] || results[lemma.toLowerCase()] || {};
+      Object.entries(t).forEach(([lang, val]) => {
+        const idx = langIdx[lang];
+        if (idx < 0 || !val || values[rowIndex][idx]) return;
+        sheet.getRange(rowIndex + 1, idx + 1).setValue(val.toString().trim());
+      });
+    });
+
+    if (b + BATCH_SIZE < wordsToTranslate.length) Utilities.sleep(1000);
+  }
+
+  ss.toast(`${wordsToTranslate.length} ord översatta.`, 'Klar', 5);
+}
+
+function anropaClaudeBatch_(apiKey, lemmas) {
+  const langList = Object.entries(LANGUAGE_NAMES_FOR_API)
+    .map(([code, name]) => `${code} (${name})`)
+    .join(', ');
+
+  const prompt = `Translate these Swedish words to the following languages.
+Reply with ONLY a valid JSON object — no explanation, no markdown.
+Each key is a Swedish word, the value is an object with language codes as keys and translations as values.
+For verbs use the infinitive form. Use the most common everyday translation.
+
+Swedish words: ${JSON.stringify(lemmas)}
+
+Target languages: ${langList}
+
+Example: {"springa": {"en": "run", "es": "correr", "ar": "يركض"}}`;
+
+  const response = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
+    method: 'post',
+    headers: {
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json'
+    },
+    payload: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 4096,
+      messages: [{ role: 'user', content: prompt }]
+    }),
+    muteHttpExceptions: true
+  });
+
+  if (response.getResponseCode() !== 200) {
+    throw new Error(`Claude API-fel (${response.getResponseCode()}): ${response.getContentText()}`);
+  }
+
+  const text = JSON.parse(response.getContentText()).content[0].text.trim();
+  try {
+    return JSON.parse(text);
+  } catch {
+    const match = text.match(/\{[\s\S]*\}/);
+    if (match) return JSON.parse(match[0]);
+    Logger.log('Kunde inte parsa Claude-svar: ' + text);
+    return {};
+  }
 }
