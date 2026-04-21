@@ -15,7 +15,7 @@
       }
       .card {
         background: #fff;
-        width: min(620px, 94vw);
+        width: min(680px, 94vw);
         border-radius: 16px;
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
         padding: 24px;
@@ -23,7 +23,7 @@
       h1 { margin: 0 0 8px; font-size: 1.4rem; }
       p { margin: 0 0 16px; color: #374151; }
       label { display: block; font-weight: 600; margin-bottom: 6px; }
-      input {
+      input, textarea {
         width: 100%;
         padding: 11px 12px;
         border-radius: 10px;
@@ -32,6 +32,7 @@
         margin-bottom: 12px;
         box-sizing: border-box;
       }
+      textarea { min-height: 120px; resize: vertical; }
       .row { display: flex; gap: 10px; flex-wrap: wrap; }
       button {
         border: 0;
@@ -42,14 +43,7 @@
         cursor: pointer;
       }
       .primary { background: #2563eb; }
-      .secondary { background: #4b5563; }
       .danger { background: #dc2626; }
-      ul {
-        margin: 10px 0 0;
-        padding-left: 18px;
-        max-height: 200px;
-        overflow: auto;
-      }
       #message { margin-top: 12px; font-weight: 600; }
       .ok { color: #166534; }
       .err { color: #991b1b; }
@@ -59,111 +53,78 @@
   <body>
     <main class="card">
       <h1>Samla svåra ord</h1>
-      <p>Lägg till <strong>ett ord i taget</strong>, men du kan lägga till många ord innan du skickar.</p>
+      <p>Skriv ditt <strong>förnamn</strong> och sedan flera ord i rutan nedan.</p>
+      <p class="muted">Skriv orden med mellanslag mellan varje ord. Punkt/kommatecken fungerar också (de rensas bort automatiskt).</p>
 
-      <label for="student">Namn (valfritt)</label>
-      <input id="student" maxlength="80" />
+      <label for="student">Förnamn (obligatoriskt)</label>
+      <input id="student" maxlength="80" required placeholder="t.ex. Sara" />
 
-      <label for="word">Ord</label>
-      <input id="word" maxlength="40" pattern="^[A-Za-zÅÄÖåäöÉéÜü]+$" />
+      <label for="words">Ord (separera med mellanslag)</label>
+      <textarea id="words" maxlength="3000" placeholder="ord1 ord2 ord3"></textarea>
 
       <div class="row">
-        <button id="addBtn" class="secondary" type="button">Lägg till ord</button>
-        <button id="saveBtn" class="primary" type="button">Skicka alla ord</button>
-        <button id="clearBtn" class="danger" type="button">Rensa lista</button>
+        <button id="saveBtn" class="primary" type="button">Skicka ord</button>
+        <button id="clearBtn" class="danger" type="button">Rensa</button>
       </div>
 
-      <p class="muted" id="count">0 ord i listan.</p>
-      <ul id="wordList"></ul>
+      <div id="preview" class="muted"></div>
       <div id="message" aria-live="polite"></div>
     </main>
 
     <script>
-      const wordInput = document.getElementById('word');
       const studentInput = document.getElementById('student');
-      const addBtn = document.getElementById('addBtn');
+      const wordsInput = document.getElementById('words');
       const saveBtn = document.getElementById('saveBtn');
       const clearBtn = document.getElementById('clearBtn');
-      const wordListEl = document.getElementById('wordList');
-      const countEl = document.getElementById('count');
+      const preview = document.getElementById('preview');
       const message = document.getElementById('message');
-
-      const pendingWords = [];
-
-      function validateOneWord(value) {
-        return /^[A-Za-zÅÄÖåäöÉéÜü]+$/.test(value);
-      }
 
       function setMessage(text, ok) {
         message.textContent = text;
         message.className = ok ? 'ok' : 'err';
       }
 
-      function renderList() {
-        wordListEl.innerHTML = '';
-        pendingWords.forEach((word, index) => {
-          const li = document.createElement('li');
-          li.textContent = word + ' ';
-
-          const remove = document.createElement('button');
-          remove.textContent = 'Ta bort';
-          remove.type = 'button';
-          remove.className = 'danger';
-          remove.style.marginLeft = '8px';
-          remove.style.padding = '4px 8px';
-          remove.onclick = () => {
-            pendingWords.splice(index, 1);
-            renderList();
-          };
-
-          li.appendChild(remove);
-          wordListEl.appendChild(li);
-        });
-
-        countEl.textContent = `${pendingWords.length} ord i listan.`;
+      function tokenize(raw) {
+        return raw
+          .toLowerCase()
+          .replace(/[.,;:!?()\[\]{}"'“”‘’]/g, ' ')
+          .split(/\s+/)
+          .map((w) => w.trim())
+          .filter(Boolean);
       }
 
-      function addCurrentWord() {
-        const word = wordInput.value.trim().toLowerCase();
-
-        if (!validateOneWord(word)) {
-          setMessage('Skriv exakt ett ord utan mellanslag.', false);
-          return;
-        }
-
-        pendingWords.push(word);
-        wordInput.value = '';
-        wordInput.focus();
-        setMessage('Ordet lades till i listan.', true);
-        renderList();
+      function isValidFirstName(value) {
+        return /^[A-Za-zÅÄÖåäöÉéÜü-]+$/.test(value);
       }
 
-      addBtn.addEventListener('click', addCurrentWord);
+      function refreshPreview() {
+        const words = tokenize(wordsInput.value);
+        preview.textContent = `${words.length} ord hittades.`;
+      }
 
-      wordInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          addCurrentWord();
-        }
-      });
+      wordsInput.addEventListener('input', refreshPreview);
 
       clearBtn.addEventListener('click', () => {
-        pendingWords.length = 0;
-        renderList();
-        setMessage('Listan rensades.', true);
+        wordsInput.value = '';
+        refreshPreview();
+        setMessage('Rensat.', true);
       });
 
       saveBtn.addEventListener('click', () => {
-        if (!pendingWords.length) {
-          setMessage('Listan är tom. Lägg till minst ett ord.', false);
+        const student = studentInput.value.trim();
+        const words = tokenize(wordsInput.value);
+
+        if (!isValidFirstName(student)) {
+          setMessage('Skriv ett giltigt förnamn (bokstäver och ev. bindestreck).', false);
           return;
         }
 
-        const student = studentInput.value.trim();
-        const words = pendingWords.slice();
+        if (!words.length) {
+          setMessage('Skriv minst ett ord.', false);
+          return;
+        }
 
         saveBtn.disabled = true;
-        addBtn.disabled = true;
         clearBtn.disabled = true;
         setMessage('Sparar…', true);
 
@@ -171,22 +132,22 @@
           .withSuccessHandler((result) => {
             setMessage(result.message, result.ok);
             if (result.ok) {
-              pendingWords.length = 0;
-              renderList();
-              wordInput.focus();
+              wordsInput.value = '';
+              refreshPreview();
+              wordsInput.focus();
             }
             saveBtn.disabled = false;
-            addBtn.disabled = false;
             clearBtn.disabled = false;
           })
           .withFailureHandler((err) => {
             setMessage('Något gick fel: ' + err.message, false);
             saveBtn.disabled = false;
-            addBtn.disabled = false;
             clearBtn.disabled = false;
           })
           .submitWords({ words, student });
       });
+
+      refreshPreview();
     </script>
   </body>
 </html>
