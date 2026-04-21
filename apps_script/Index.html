@@ -1,6 +1,8 @@
 <!DOCTYPE html>
-<html>
+<html lang="sv">
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <base target="_top">
   <style>
     body {
@@ -20,9 +22,7 @@
       box-shadow: 0 10px 30px rgba(0,0,0,0.08);
     }
 
-    h1 {
-      margin-top: 0;
-    }
+    h1 { margin-top: 0; }
 
     input, textarea {
       width: 100%;
@@ -34,9 +34,7 @@
       box-sizing: border-box;
     }
 
-    textarea {
-      min-height: 120px;
-    }
+    textarea { min-height: 120px; }
 
     button {
       width: 100%;
@@ -49,9 +47,7 @@
       cursor: pointer;
     }
 
-    button:hover {
-      background: #1d4ed8;
-    }
+    button:hover { background: #1d4ed8; }
 
     #status {
       margin-top: 10px;
@@ -69,15 +65,10 @@
 <body>
   <div class="card">
     <h1>Svåra ord</h1>
-
     <input id="student" placeholder="Ditt namn">
-
     <textarea id="words" placeholder="Skriv flera ord separerade med mellanslag eller kommatecken"></textarea>
-
     <button onclick="save()">Skicka ord</button>
-
     <div id="status"></div>
-
     <p class="hint">Du kan skriva flera ord och skicka alla samtidigt.</p>
   </div>
 
@@ -91,33 +82,22 @@
     }
 
     function save() {
-      const student = document.getElementById("student").value.trim();
-      const words = tokenize(document.getElementById("words").value);
+      const student = document.getElementById('student').value.trim();
+      const words = tokenize(document.getElementById('words').value);
+      const status = document.getElementById('status');
 
-      const status = document.getElementById("status");
+      if (!student) { status.textContent = 'Skriv ditt namn'; return; }
+      if (!words.length) { status.textContent = 'Skriv minst ett ord'; return; }
 
-      if (!student) {
-        status.innerText = "Skriv ditt namn";
-        return;
-      }
-
-      if (!words.length) {
-        status.innerText = "Skriv minst ett ord";
-        return;
-      }
-
-      status.innerText = "Sparar...";
+      status.textContent = 'Sparar...';
 
       google.script.run
         .withSuccessHandler(res => {
-          status.innerText = res.message;
-
-          if (res.ok) {
-            document.getElementById("words").value = "";
-          }
+          status.textContent = res.message;
+          if (res.ok) document.getElementById('words').value = '';
         })
         .withFailureHandler(err => {
-          status.innerText = "Fel: " + err.message;
+          status.textContent = 'Fel: ' + err.message;
         })
         .submitWords({ student, words });
     }

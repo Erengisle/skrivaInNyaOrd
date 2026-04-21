@@ -1,105 +1,100 @@
 <!DOCTYPE html>
 <html lang="sv">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Klassens ordbank</title>
-    <style>
-      body { font-family: system-ui, sans-serif; margin: 0; background: #f8fafc; }
-      .wrap { max-width: 980px; margin: 0 auto; padding: 20px; }
-      .card { background: white; border-radius: 12px; padding: 16px; box-shadow: 0 6px 24px rgba(0,0,0,0.06); }
-      .filters { display: grid; grid-template-columns: 1fr 1fr 2fr auto; gap: 8px; margin-bottom: 12px; }
-      input, select, button { padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 14px; }
-      button { background: #2563eb; color: #fff; border: none; font-weight: 700; cursor: pointer; }
-      table { width: 100%; border-collapse: collapse; }
-      th, td { text-align: left; padding: 8px; border-bottom: 1px solid #e2e8f0; }
-      th { background: #f1f5f9; }
-      .muted { color: #64748b; font-size: 13px; }
-    </style>
-  </head>
-  <body>
-    <div class="wrap">
-      <h1>Klassens ordbank</h1>
-      <p class="muted">Filtrera ordklass, språk och sökord.</p>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Klassens ordbank</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; background: #f8fafc; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 20px; }
+    .card { background: white; border-radius: 12px; padding: 16px; box-shadow: 0 6px 24px rgba(0,0,0,0.06); }
+    .filters { display: grid; grid-template-columns: 1fr 1fr 2fr auto; gap: 8px; margin-bottom: 12px; }
+    input, select, button { padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 14px; }
+    button { background: #2563eb; color: #fff; border: none; font-weight: 700; cursor: pointer; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 8px; border-bottom: 1px solid #e2e8f0; }
+    th { background: #f1f5f9; }
+    .muted { color: #64748b; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Klassens ordbank</h1>
+    <p class="muted">Filtrera ordklass, språk och sökord.</p>
 
-      <div class="card">
-        <div class="filters">
-          <select id="ordklass">
-            <option value="">Alla ordklasser</option>
-            <option value="verb">Verb</option>
-            <option value="substantiv">Substantiv</option>
-            <option value="adjektiv">Adjektiv</option>
-            <option value="okänd">Okänd</option>
-          </select>
+    <div class="card">
+      <div class="filters">
+        <select id="ordklass">
+          <option value="">Alla ordklasser</option>
+          <option value="verb">Verb</option>
+          <option value="substantiv">Substantiv</option>
+          <option value="adjektiv">Adjektiv</option>
+          <option value="okänd">Okänd</option>
+        </select>
 
-          <select id="language">
-            <option value="sv">Svenska</option>
-            <option value="en">Engelska</option>
-            <option value="ar">Arabiska</option>
-            <option value="uk">Ukrainska</option>
-          </select>
+        <select id="language">
+          <option value="sv">Svenska</option>
+          <option value="en">Engelska</option>
+          <option value="ar">Arabiska</option>
+          <option value="uk">Ukrainska</option>
+        </select>
 
-          <input id="q" placeholder="Sök ord eller översättning" />
-          <button id="reload">Uppdatera</button>
-        </div>
-
-        <div id="count" class="muted"></div>
-        <table>
-          <thead>
-            <tr>
-              <th>Ord</th>
-              <th>Översättning</th>
-              <th>Ordklass</th>
-              <th>Frekvens</th>
-              <th>Dekl.</th>
-              <th>Verbgrupp</th>
-            </tr>
-          </thead>
-          <tbody id="rows"></tbody>
-        </table>
+        <input id="q" placeholder="Sök ord eller översättning">
+        <button id="reload">Uppdatera</button>
       </div>
+
+      <div id="count" class="muted"></div>
+      <table>
+        <thead>
+          <tr>
+            <th>Ord</th>
+            <th>Översättning</th>
+            <th>Ordklass</th>
+            <th>Frekvens</th>
+            <th>Dekl.</th>
+            <th>Verbgrupp</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
     </div>
+  </div>
 
-    <script>
-      const ordklass = document.getElementById('ordklass');
-      const language = document.getElementById('language');
-      const q = document.getElementById('q');
-      const rowsEl = document.getElementById('rows');
-      const countEl = document.getElementById('count');
+  <script>
+    const ordklassEl = document.getElementById('ordklass');
+    const languageEl = document.getElementById('language');
+    const qEl = document.getElementById('q');
+    const rowsEl = document.getElementById('rows');
+    const countEl = document.getElementById('count');
 
-      function render(rows) {
-        rowsEl.innerHTML = '';
-        rows.forEach((r) => {
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td>${r.lemma || ''}</td>
-            <td>${r.translation || ''}</td>
-            <td>${r.ordklass || ''}</td>
-            <td>${r.frekvens || ''}</td>
-            <td>${r.deklination || ''}</td>
-            <td>${r.verbgrupp || ''}</td>
-          `;
-          rowsEl.appendChild(tr);
+    function render(rows) {
+      rowsEl.innerHTML = '';
+      rows.forEach(r => {
+        const tr = document.createElement('tr');
+        [r.lemma, r.translation, r.ordklass, r.frekvens, r.deklination, r.verbgrupp].forEach(val => {
+          const td = document.createElement('td');
+          td.textContent = val || '';
+          tr.appendChild(td);
         });
-        countEl.textContent = `${rows.length} ord visas.`;
-      }
-
-      function load() {
-        google.script.run
-          .withSuccessHandler(render)
-          .hamtaOrdbankData({
-            ordklass: ordklass.value,
-            language: language.value,
-            q: q.value.trim()
-          });
-      }
-
-      document.getElementById('reload').addEventListener('click', load);
-      q.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') load();
+        rowsEl.appendChild(tr);
       });
+      countEl.textContent = `${rows.length} ord visas.`;
+    }
 
-      load();
-    </script>
-  </body>
+    function load() {
+      google.script.run
+        .withSuccessHandler(render)
+        .hamtaOrdbankData({
+          ordklass: ordklassEl.value,
+          language: languageEl.value,
+          q: qEl.value.trim()
+        });
+    }
+
+    document.getElementById('reload').addEventListener('click', load);
+    qEl.addEventListener('keydown', e => { if (e.key === 'Enter') load(); });
+
+    load();
+  </script>
+</body>
 </html>
