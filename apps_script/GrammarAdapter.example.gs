@@ -35,6 +35,13 @@ function doGet(e) {
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   }
 
+  if (view === 'dashboard') {
+    return HtmlService
+      .createHtmlOutput(hamtaHtmlMedFallback_('dashboard', fallbackInputHtml_()))
+      .setTitle('Dashboard')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  }
+
   return HtmlService
     .createHtmlOutput(hamtaHtmlMedFallback_('Index', fallbackInputHtml_()))
     .setTitle('Svåra ord')
