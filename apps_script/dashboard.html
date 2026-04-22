@@ -4,109 +4,130 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <base target="_top">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
+    * { box-sizing: border-box; }
+
     body {
       font-family: system-ui, sans-serif;
-      background: #f3f6ff;
+      background: #f1f5f9;
       margin: 0;
-      padding: 20px;
+      padding: 24px;
+      color: #1e293b;
     }
 
     .grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      max-width: 960px;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      max-width: 1100px;
       margin: auto;
     }
 
     .card {
       background: white;
-      padding: 16px;
-      border-radius: 12px;
-      box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.06);
     }
 
-    h2 { margin-top: 0; font-size: 1rem; color: #374151; text-transform: uppercase; letter-spacing: 0.05em; }
-    h3 { margin: 0 0 8px; font-size: 0.95rem; color: #2563eb; }
-
-    table { width: 100%; border-collapse: collapse; }
-    td, th { text-align: left; padding: 6px; border-bottom: 1px solid #eee; }
-
-    .big { font-size: 2.5rem; font-weight: bold; color: #2563eb; }
-
-    .word-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 16px;
-      margin-top: 4px;
+    .card h2 {
+      margin: 0 0 14px;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #64748b;
+      font-weight: 600;
     }
 
-    .group-row { margin-bottom: 6px; font-size: 0.9rem; }
-    .group-label { font-weight: 600; color: #374151; margin-right: 6px; }
+    .stat-value { font-size: 3rem; font-weight: 700; color: #2563eb; line-height: 1; }
+    .stat-sub { font-size: 0.8rem; color: #94a3b8; margin-top: 6px; }
 
-    .card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 12px;
-    }
+    .span-2 { grid-column: span 2; }
+    .span-3 { grid-column: span 3; }
 
+    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
     .card-header h2 { margin: 0; }
 
-    .refresh-btn {
-      padding: 4px 12px;
+    .btn {
+      padding: 5px 14px;
       border: none;
-      border-radius: 6px;
+      border-radius: 8px;
       background: #e0e7ff;
       color: #2563eb;
       font-weight: 600;
       cursor: pointer;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
     }
+    .btn:hover { background: #c7d2fe; }
 
-    .refresh-btn:hover { background: #c7d2fe; }
+    .chart-wrap { position: relative; height: 260px; }
+    .chart-wrap-lg { position: relative; height: 200px; }
 
-    .muted { color: #6b7280; font-size: 0.85rem; }
+    table { width: 100%; border-collapse: collapse; }
+    th {
+      text-align: left;
+      padding: 8px 10px;
+      background: #f8fafc;
+      font-size: 0.75rem;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    td { padding: 8px 10px; border-bottom: 1px solid #f1f5f9; font-size: 0.9rem; }
+    tbody tr:last-child td { border-bottom: none; }
+
+    .muted { color: #94a3b8; font-size: 0.82rem; margin-top: 8px; }
   </style>
 </head>
-
 <body>
   <div class="grid">
 
     <div class="card">
-      <h2>Totalt antal ord</h2>
-      <div id="total" class="big">...</div>
+      <h2>Totalt inlämnade ord</h2>
+      <div class="stat-value" id="total">–</div>
+      <div class="stat-sub">från alla elever</div>
     </div>
 
     <div class="card">
-      <h2>Elever</h2>
-      <div id="students"></div>
+      <h2>Aktiva elever</h2>
+      <div class="stat-value" id="student-count">–</div>
+      <div class="stat-sub">har skickat in ord</div>
     </div>
 
-    <div class="card" style="grid-column: span 2;">
+    <div class="card">
+      <h2>Unika ord</h2>
+      <div class="stat-value" id="unique-count">–</div>
+      <div class="stat-sub">analyserade ord</div>
+    </div>
+
+    <div class="card span-2">
       <div class="card-header">
-        <h2>Ordanalys</h2>
-        <button class="refresh-btn" id="refresh-words">Uppdatera</button>
+        <h2>Vanligaste orden</h2>
+        <button class="btn" id="refresh-words">Uppdatera</button>
       </div>
-      <div id="word-status" class="muted"></div>
-      <div class="word-grid">
-        <div>
-          <h3>Verb</h3>
-          <div id="verb-groups"></div>
-        </div>
-        <div>
-          <h3>Substantiv</h3>
-          <div id="noun-groups"></div>
-        </div>
-        <div>
-          <h3>Övriga</h3>
-          <div id="other-words"></div>
-        </div>
+      <div class="chart-wrap">
+        <canvas id="chart-words"></canvas>
+      </div>
+      <p class="muted" id="words-status"></p>
+    </div>
+
+    <div class="card">
+      <h2>Ordklasser</h2>
+      <div class="chart-wrap">
+        <canvas id="chart-ordklass"></canvas>
       </div>
     </div>
 
-    <div class="card" style="grid-column: span 2;">
+    <div class="card span-3">
+      <h2>Elevaktivitet — antal inlämnade ord</h2>
+      <div class="chart-wrap-lg">
+        <canvas id="chart-students"></canvas>
+      </div>
+    </div>
+
+    <div class="card span-3">
       <h2>Senaste inlämningar</h2>
       <table>
         <thead><tr><th>Tid</th><th>Elev</th><th>Ord</th></tr></thead>
@@ -117,18 +138,67 @@
   </div>
 
   <script>
+    Chart.defaults.font.family = 'system-ui, sans-serif';
+    Chart.defaults.color = '#64748b';
+
+    const ORDKLASS_COLORS = {
+      verb: '#3b82f6',
+      substantiv: '#10b981',
+      adjektiv: '#f59e0b',
+      okänd: '#94a3b8'
+    };
+
+    let wordChart, ordklassChart, studentChart;
+
+    function initCharts() {
+      wordChart = new Chart(document.getElementById('chart-words'), {
+        type: 'bar',
+        data: { labels: [], datasets: [{ data: [], backgroundColor: [], borderRadius: 6, borderSkipped: false }] },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false }, tooltip: { callbacks: {
+            label: ctx => ` ${ctx.parsed.x} gånger`
+          }}},
+          scales: {
+            x: { grid: { display: false }, ticks: { stepSize: 1 } },
+            y: { grid: { display: false } }
+          }
+        }
+      });
+
+      ordklassChart = new Chart(document.getElementById('chart-ordklass'), {
+        type: 'doughnut',
+        data: { labels: [], datasets: [{ data: [], backgroundColor: [], borderWidth: 0, hoverOffset: 10 }] },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom', labels: { padding: 16, usePointStyle: true } } },
+          cutout: '60%'
+        }
+      });
+
+      studentChart = new Chart(document.getElementById('chart-students'), {
+        type: 'bar',
+        data: { labels: [], datasets: [{ data: [], backgroundColor: '#10b981', borderRadius: 6 }] },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false }, tooltip: { callbacks: {
+            label: ctx => ` ${ctx.parsed.y} ord`
+          }}},
+          scales: {
+            x: { grid: { display: false } },
+            y: { grid: { color: '#f8fafc' }, ticks: { stepSize: 1 } }
+          }
+        }
+      });
+    }
+
     function renderStats(data) {
       document.getElementById('total').textContent = data.totalWords;
-
-      const studentsDiv = document.getElementById('students');
-      studentsDiv.innerHTML = '';
-      Object.entries(data.perStudent)
-        .sort((a, b) => b[1] - a[1])
-        .forEach(([name, count]) => {
-          const div = document.createElement('div');
-          div.textContent = `${name}: ${count} ord`;
-          studentsDiv.appendChild(div);
-        });
+      document.getElementById('student-count').textContent = Object.keys(data.perStudent).length;
 
       const tbody = document.getElementById('latest');
       tbody.innerHTML = '';
@@ -141,55 +211,36 @@
         });
         tbody.appendChild(row);
       });
-    }
 
-    function groupBy(items, key) {
-      return items.reduce((acc, item) => {
-        const k = item[key] || 'okänd';
-        (acc[k] = acc[k] || []).push(item);
-        return acc;
-      }, {});
-    }
-
-    function renderWordGroup(containerId, groups, prefix) {
-      const container = document.getElementById(containerId);
-      container.innerHTML = '';
-      const entries = Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0], 'sv'));
-      if (!entries.length) { container.textContent = '–'; return; }
-      entries.forEach(([key, items]) => {
-        const div = document.createElement('div');
-        div.className = 'group-row';
-        const label = document.createElement('span');
-        label.className = 'group-label';
-        label.textContent = `${prefix} ${key}:`;
-        div.appendChild(label);
-        div.appendChild(document.createTextNode(items.map(w => w.lemma).join(', ')));
-        container.appendChild(div);
-      });
+      const students = Object.entries(data.perStudent).sort((a, b) => b[1] - a[1]);
+      studentChart.data.labels = students.map(s => s[0]);
+      studentChart.data.datasets[0].data = students.map(s => s[1]);
+      studentChart.update();
     }
 
     function renderWords(words) {
-      document.getElementById('word-status').textContent = '';
-      const verbs  = words.filter(w => w.ordklass === 'verb');
-      const nouns  = words.filter(w => w.ordklass === 'substantiv');
-      const others = words.filter(w => w.ordklass !== 'verb' && w.ordklass !== 'substantiv');
+      document.getElementById('unique-count').textContent = words.length;
+      const status = document.getElementById('words-status');
 
-      renderWordGroup('verb-groups', groupBy(verbs, 'verbgrupp'), 'Grupp');
-      renderWordGroup('noun-groups', groupBy(nouns, 'deklination'), 'Dekl.');
+      if (!words.length) {
+        status.textContent = 'Kör "Uppdatera översikt" i Sheet-menyn för att se ordanalys.';
+        return;
+      }
+      status.textContent = '';
 
-      const otherDiv = document.getElementById('other-words');
-      otherDiv.innerHTML = '';
-      if (!others.length) { otherDiv.textContent = '–'; return; }
-      Object.entries(groupBy(others, 'ordklass')).sort().forEach(([cls, ws]) => {
-        const div = document.createElement('div');
-        div.className = 'group-row';
-        const label = document.createElement('span');
-        label.className = 'group-label';
-        label.textContent = `${cls}:`;
-        div.appendChild(label);
-        div.appendChild(document.createTextNode(ws.map(w => w.lemma).join(', ')));
-        otherDiv.appendChild(div);
-      });
+      const top = words.slice(0, 15);
+      wordChart.data.labels = top.map(w => w.lemma);
+      wordChart.data.datasets[0].data = top.map(w => w.frekvens);
+      wordChart.data.datasets[0].backgroundColor = top.map(w => ORDKLASS_COLORS[w.ordklass] || '#94a3b8');
+      wordChart.update();
+
+      const counts = {};
+      words.forEach(w => { counts[w.ordklass] = (counts[w.ordklass] || 0) + 1; });
+      const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+      ordklassChart.data.labels = entries.map(e => e[0]);
+      ordklassChart.data.datasets[0].data = entries.map(e => e[1]);
+      ordklassChart.data.datasets[0].backgroundColor = entries.map(e => ORDKLASS_COLORS[e[0]] || '#94a3b8');
+      ordklassChart.update();
     }
 
     function loadStats() {
@@ -197,30 +248,16 @@
     }
 
     function loadWords() {
-      const status = document.getElementById('word-status');
-      status.textContent = 'Laddar...';
-      google.script.run
-        .withSuccessHandler(words => {
-          if (!words.length) {
-            status.textContent = 'Inga ord ännu — kör "Uppdatera översikt" i Sheet-menyn först.';
-            ['verb-groups', 'noun-groups', 'other-words'].forEach(id => {
-              document.getElementById(id).textContent = '–';
-            });
-          } else {
-            renderWords(words);
-          }
-        })
-        .withFailureHandler(() => {
-          status.textContent = 'Kunde inte hämta orddata.';
-        })
-        .getDashboardWords();
+      document.getElementById('words-status').textContent = 'Laddar...';
+      google.script.run.withSuccessHandler(renderWords).getDashboardWords();
     }
 
     document.getElementById('refresh-words').addEventListener('click', loadWords);
 
+    initCharts();
     loadStats();
     loadWords();
-    setInterval(loadStats, 5000);
+    setInterval(loadStats, 30000);
   </script>
 </body>
 </html>
