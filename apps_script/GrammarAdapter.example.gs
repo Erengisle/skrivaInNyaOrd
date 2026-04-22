@@ -356,8 +356,114 @@ function onOpen() {
     .addItem('Bygg Ordbank från Översikt', 'byggOrdbankFranOversikt')
     .addSeparator()
     .addItem('Översätt ord med AI', 'oversattAllaOrd')
+    .addItem('Analysera grammatik med AI', 'analyseraGrammatikMedAI')
     .addItem('Ange API-nyckel', 'sattApiNyckel')
     .addToUi();
+}
+
+// ── AI-grammatikanalys ───────────────────────────────────────────────────────
+
+const GRAMMAR_KEYS = ['ordklass', 'deklination', 'verbgrupp', 'infinitiv', 'imperativ', 'presens', 'preteritum', 'supinum'];
+
+function analyseraGrammatikMedAI() {
+  const apiKey = PropertiesService.getScriptProperties().getProperty('CLAUDE_API_KEY');
+  if (!apiKey) { SpreadsheetApp.getUi().alert('Lägg till din API-nyckel via Ordverktyg → Ange API-nyckel.'); return; }
+
+  const ss = SpreadsheetApp.getActive();
+  const oversikt = ss.getSheetByName(OUTPUT_SHEET);
+  if (!oversikt) { SpreadsheetApp.getUi().alert('Kör "Uppdatera översikt" först.'); return; }
+
+  const values = oversikt.getDataRange().getValues();
+  if (values.length < 2) return;
+
+  const headers = values[0].map(h => h.toString().toLowerCase());
+  const idx = {};
+  for (const key of ['lemma', ...GRAMMAR_KEYS]) idx[key] = headers.indexOf(key);
+
+  const words = values.slice(1)
+    .map((r, i) => ({ rowIndex: i + 1, lemma: (r[idx.lemma] || '').toString().trim() }))
+    .filter(w => w.lemma);
+
+  if (!words.length) return;
+
+  // Build Ordbank lookup so we can update grammar there too (without wiping translations)
+  const wordbank = ss.getSheetByName(WORDBANK_SHEET);
+  let wbIdx = null;
+  const wbLemmaRow = {};
+  if (wordbank) {
+    const wbHeaders = wordbank.getRange(1, 1, 1, wordbank.getLastColumn()).getValues()[0]
+      .map(h => h.toString().toLowerCase());
+    wbIdx = {};
+    for (const key of ['lemma', ...GRAMMAR_KEYS]) wbIdx[key] = wbHeaders.indexOf(key);
+    wordbank.getDataRange().getValues().slice(1).forEach((r, i) => {
+      const lemma = (r[wbIdx.lemma] || '').toString().trim();
+      if (lemma) wbLemmaRow[lemma] = i + 1;
+    });
+  }
+
+  const BATCH_SIZE = 20;
+  for (let b = 0; b < words.length; b += BATCH_SIZE) {
+    const batch = words.slice(b, b + BATCH_SIZE);
+    const results = anropaClaudeGrammatik_(apiKey, batch.map(w => w.lemma));
+
+    batch.forEach(({ rowIndex, lemma }) => {
+      const analysis = results[lemma] || results[lemma.toLowerCase()] || {};
+      if (!analysis.ordklass) return;
+
+      GRAMMAR_KEYS.forEach(key => {
+        if (idx[key] >= 0) oversikt.getRange(rowIndex + 1, idx[key] + 1).setValue(analysis[key] || '');
+      });
+
+      if (wordbank && wbIdx) {
+        const wbRow = wbLemmaRow[lemma];
+        if (wbRow !== undefined) {
+          GRAMMAR_KEYS.forEach(key => {
+            if (wbIdx[key] >= 0) wordbank.getRange(wbRow + 1, wbIdx[key] + 1).setValue(analysis[key] || '');
+          });
+        }
+      }
+    });
+
+    if (b + BATCH_SIZE < words.length) Utilities.sleep(1000);
+  }
+
+  ss.toast('Grammatikanalys klar — Översikt och Ordbank uppdaterade.', 'Klar', 5);
+}
+
+function anropaClaudeGrammatik_(apiKey, lemmas) {
+  const prompt = `Analyze these Swedish words grammatically.
+Reply with ONLY a valid JSON object — no explanation, no markdown.
+
+Each key is a Swedish word. The value is an object with:
+- ordklass: "verb", "substantiv", "adjektiv", or "okänd"
+- For verbs: verbgrupp ("1","2a","2b","3","4"), infinitiv, imperativ, presens, preteritum, supinum
+- For nouns: deklination ("1","2","3","4","5")
+- For others: just ordklass
+
+Swedish words: ${JSON.stringify(lemmas)}
+
+Example:
+{"springa":{"ordklass":"verb","verbgrupp":"4","infinitiv":"springa","imperativ":"spring","presens":"springer","preteritum":"sprang","supinum":"sprungit"},"hus":{"ordklass":"substantiv","deklination":"5"},"snabb":{"ordklass":"adjektiv"}}`;
+
+  const response = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
+    method: 'post',
+    headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+    payload: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 4096,
+      messages: [{ role: 'user', content: prompt }]
+    }),
+    muteHttpExceptions: true
+  });
+
+  if (response.getResponseCode() !== 200) throw new Error('Claude API-fel: ' + response.getContentText());
+  const text = JSON.parse(response.getContentText()).content[0].text.trim();
+  try { return JSON.parse(text); } catch {
+    const match = text.match(/\{[\s\S]*\}/);
+    if (match) return JSON.parse(match[0]);
+    Logger.log('Kunde inte parsa svar: ' + text);
+    return {};
+  }
 }
 
 // ── AI-översättning ─────────────────────────────────────────────────────────
