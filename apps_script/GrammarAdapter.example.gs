@@ -408,5 +408,7 @@ function onOpen() {
     .addSeparator()
     .addItem('Skapa tom Ordbank', 'initieraOrdbank')
     .addItem('Bygg Ordbank från Översikt', 'byggOrdbankFranOversikt')
+    .addSeparator()
+    .addItem('Kontrollera kolumn mot SALDO', 'kontrolleraKolumnMotSaldo')
     .addToUi();
 }
