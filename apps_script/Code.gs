@@ -1,9 +1,9 @@
 function getDashboardData() {
   const sheet = getInputSheet();
-  if (!sheet) return { totalWords: 0, perStudent: {}, lastEntries: [] };
+  if (!sheet) return { totalWords: 0, perStudent: {}, studentDetails: {}, lastEntries: [] };
 
   const data = sheet.getDataRange().getValues();
-  const stats = { totalWords: 0, perStudent: {}, lastEntries: [] };
+  const stats = { totalWords: 0, perStudent: {}, studentDetails: {}, lastEntries: [] };
 
   for (let i = 1; i < data.length; i++) {
     const [time, student, word] = data[i];
@@ -12,6 +12,14 @@ function getDashboardData() {
     stats.totalWords++;
     stats.perStudent[student] = (stats.perStudent[student] || 0) + 1;
     stats.lastEntries.push({ time, student, word });
+
+    if (!stats.studentDetails[student]) {
+      stats.studentDetails[student] = { count: 0, lastTime: time };
+    }
+    stats.studentDetails[student].count++;
+    if (!stats.studentDetails[student].lastTime || time > stats.studentDetails[student].lastTime) {
+      stats.studentDetails[student].lastTime = time;
+    }
   }
 
   stats.lastEntries = stats.lastEntries.slice(-10).reverse();
