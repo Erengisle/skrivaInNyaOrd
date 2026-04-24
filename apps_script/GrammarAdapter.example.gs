@@ -215,7 +215,7 @@ function hamtaOrdbankData(filters) {
   const langIdx = {};
   LANGUAGES.forEach(lang => { langIdx[lang] = headers.indexOf(lang); });
 
-  const language = ((filters && filters.language) || 'sv').toLowerCase();
+  const language = ((filters && filters.language) || '').toLowerCase();
   const ordklassFilter = ((filters && filters.ordklass) || '').toLowerCase();
   const q = ((filters && filters.q) || '').toLowerCase();
 
@@ -226,7 +226,7 @@ function hamtaOrdbankData(filters) {
       LANGUAGES.forEach(lang => {
         translations[lang] = langIdx[lang] >= 0 ? (r[langIdx[lang]] || '') : '';
       });
-      const translation = translations[language] || translations.sv || get('lemma');
+      const translation = language ? (translations[language] || '') : '';
       return {
         lemma: get('lemma'),
         ordklass: get('ordklass'),
