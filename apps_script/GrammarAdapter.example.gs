@@ -528,7 +528,7 @@ function oversattAllaOrd() {
     return;
   }
 
-  const BATCH_SIZE = 20;
+  const BATCH_SIZE = 10;
   for (let b = 0; b < wordsToTranslate.length; b += BATCH_SIZE) {
     const batch = wordsToTranslate.slice(b, b + BATCH_SIZE);
     const results = anropaClaudeBatch_(apiKey, batch.map(w => w.lemma));
@@ -573,7 +573,7 @@ Example: {"springa": {"en": "run", "es": "correr", "ar": "يركض"}}`;
     },
     payload: JSON.stringify({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 4096,
+      max_tokens: 8192,
       messages: [{ role: 'user', content: prompt }]
     }),
     muteHttpExceptions: true
