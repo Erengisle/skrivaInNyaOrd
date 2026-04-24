@@ -9,7 +9,7 @@
     body { font-family: system-ui, sans-serif; margin: 0; background: #f8fafc; }
     .wrap { max-width: 980px; margin: 0 auto; padding: 20px; }
     .card { background: white; border-radius: 12px; padding: 16px; box-shadow: 0 6px 24px rgba(0,0,0,0.06); }
-    .filters { display: grid; grid-template-columns: 1fr 1fr 2fr auto; gap: 8px; margin-bottom: 12px; }
+    .filters { display: grid; grid-template-columns: 1fr 2fr auto; gap: 8px; margin-bottom: 12px; }
     input, select, button { padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 14px; }
     button { background: #2563eb; color: #fff; border: none; font-weight: 700; cursor: pointer; }
     table { width: 100%; border-collapse: collapse; }
@@ -70,22 +70,7 @@
           <option value="okänd">Okänd</option>
         </select>
 
-        <select id="language">
-          <option value="">— välj språk —</option>
-          <option value="sv">Svenska</option>
-          <option value="en">Engelska</option>
-          <option value="es">Spanska</option>
-          <option value="ar">Arabiska</option>
-          <option value="ur">Urdu</option>
-          <option value="tr">Turkiska</option>
-          <option value="zh">Mandarin</option>
-          <option value="th">Thai</option>
-          <option value="ti">Tigrinja</option>
-          <option value="mn">Mongoliska</option>
-          <option value="uk">Ukrainska</option>
-        </select>
-
-        <input id="q" placeholder="Sök ord eller översättning">
+        <input id="q" placeholder="Sök ord">
         <button id="reload">Uppdatera</button>
       </div>
 
@@ -179,7 +164,7 @@
         .withSuccessHandler(render)
         .hamtaOrdbankData({
           ordklass: document.getElementById('ordklass').value,
-          language: document.getElementById('language').value,
+          language: '',
           q: document.getElementById('q').value.trim()
         });
     }
