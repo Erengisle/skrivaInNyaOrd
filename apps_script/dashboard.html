@@ -89,7 +89,6 @@
       font-weight: 600;
     }
     .badge-blue { background: #dbeafe; color: #1d4ed8; }
-    .badge-green { background: #d1fae5; color: #065f46; }
 
     .rank { color: #cbd5e1; font-size: 0.85rem; width: 28px; display: inline-block; }
 
@@ -97,9 +96,26 @@
     .progress-bar { background: #2563eb; border-radius: 999px; height: 6px; }
     .student-row td { vertical-align: middle; }
     .flex-cell { display: flex; align-items: center; gap: 8px; }
+
+    .empty-state { color: #94a3b8; font-style: italic; font-size: 0.9rem; padding: 16px 0; }
+
+    .error-banner {
+      display: none;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #b91c1c;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 0.85rem;
+      margin-bottom: 16px;
+    }
   </style>
 </head>
 <body>
+  <div style="max-width:1100px;margin:auto">
+    <div id="stats-error" class="error-banner"></div>
+  </div>
+
   <div class="grid">
 
     <div class="card">
@@ -155,6 +171,7 @@
         </thead>
         <tbody id="student-table"></tbody>
       </table>
+      <p id="student-empty" class="empty-state" style="display:none">Inga inlämningar ännu.</p>
     </div>
 
     <div class="card span-3">
@@ -162,14 +179,7 @@
       <div class="chart-wrap-lg">
         <canvas id="chart-students"></canvas>
       </div>
-    </div>
-
-    <div class="card span-3">
-      <h2>Senaste inlämningar</h2>
-      <table>
-        <thead><tr><th>Tid</th><th>Elev</th><th>Ord</th></tr></thead>
-        <tbody id="latest"></tbody>
-      </table>
+      <p id="activity-empty" class="empty-state" style="display:none">Inga inlämningar ännu.</p>
     </div>
 
   </div>
@@ -248,31 +258,24 @@
         studentCount === 1 ? 'elev har skickat in ord' : 'elever har skickat in ord';
       document.getElementById('student-badge').textContent = studentCount + ' elever';
 
-      const tbody = document.getElementById('latest');
-      tbody.innerHTML = '';
-      data.lastEntries.forEach(({ time, student, word }) => {
-        const row = document.createElement('tr');
-        [formatTime(time), student, word].forEach(val => {
-          const td = document.createElement('td');
-          td.textContent = val;
-          row.appendChild(td);
-        });
-        tbody.appendChild(row);
-      });
-
       const students = Object.entries(data.perStudent).sort((a, b) => b[1] - a[1]);
+
+      document.getElementById('activity-empty').style.display = students.length ? 'none' : '';
       studentChart.data.labels = students.map(s => s[0]);
       studentChart.data.datasets[0].data = students.map(s => s[1]);
       studentChart.update();
 
-      renderStudentTable(data);
+      renderStudentTable(data, students);
     }
 
-    function renderStudentTable(data) {
+    function renderStudentTable(data, students) {
       const tbody = document.getElementById('student-table');
       tbody.innerHTML = '';
+
+      document.getElementById('student-empty').style.display = students.length ? 'none' : '';
+      if (!students.length) return;
+
       const total = data.totalWords || 1;
-      const students = Object.entries(data.perStudent).sort((a, b) => b[1] - a[1]);
 
       students.forEach(([name, count], idx) => {
         const detail = data.studentDetails && data.studentDetails[name];
@@ -356,11 +359,14 @@
 
     function loadStats() {
       google.script.run
-        .withSuccessHandler(renderStats)
+        .withSuccessHandler(data => {
+          document.getElementById('stats-error').style.display = 'none';
+          renderStats(data);
+        })
         .withFailureHandler(err => {
-          document.getElementById('total').textContent = '!';
-          document.getElementById('student-count').textContent = '!';
-          console.error('getDashboardData fel:', err);
+          const el = document.getElementById('stats-error');
+          el.style.display = 'block';
+          el.textContent = 'Kunde inte läsa elevdata: ' + err.message;
         })
         .getDashboardData();
     }
