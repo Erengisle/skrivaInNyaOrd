@@ -358,6 +358,7 @@ function onOpen() {
     .createMenu('Ordverktyg')
     .addItem('Uppdatera översikt', 'uppdateraOversikt')
     .addItem('Konfigurera enords-validering', 'konfigureraValidering')
+    .addItem('Lägg till ordklass-dropdown', 'konfigureraOrdklassDropdown')
     .addSeparator()
     .addItem('Skapa tom Ordbank', 'initieraOrdbank')
     .addItem('Bygg Ordbank från Översikt', 'byggOrdbankFranOversikt')
@@ -366,6 +367,36 @@ function onOpen() {
     .addItem('Analysera grammatik med AI', 'analyseraGrammatikMedAI')
     .addItem('Ange API-nyckel', 'sattApiNyckel')
     .addToUi();
+}
+
+function konfigureraOrdklassDropdown() {
+  const ss = SpreadsheetApp.getActive();
+  const sheets = [
+    ss.getSheetByName(CONFIG.OUTPUT_SHEET),
+    ss.getSheetByName(CONFIG.WORDBANK_SHEET)
+  ].filter(Boolean);
+
+  if (!sheets.length) {
+    SpreadsheetApp.getUi().alert('Varken Översikt eller Ordbank hittades. Kör "Uppdatera översikt" först.');
+    return;
+  }
+
+  const rule = SpreadsheetApp.newDataValidation()
+    .requireValueInList(['verb', 'substantiv', 'adjektiv', 'okänd'], true)
+    .setAllowInvalid(false)
+    .build();
+
+  sheets.forEach(sheet => {
+    const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
+      .map(h => h.toString().toLowerCase());
+    const col = headers.indexOf('ordklass');
+    if (col < 0) return;
+    const lastRow = sheet.getLastRow();
+    if (lastRow < 2) return;
+    sheet.getRange(2, col + 1, lastRow - 1, 1).setDataValidation(rule);
+  });
+
+  SpreadsheetApp.getActive().toast('Ordklass-dropdown tillagd i Översikt och Ordbank.', 'Klar', 4);
 }
 
 // ── AI-grammatikanalys ───────────────────────────────────────────────────────
