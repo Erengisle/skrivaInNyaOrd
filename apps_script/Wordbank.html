@@ -1,113 +1,194 @@
 <!DOCTYPE html>
 <html lang="sv">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Klassens ordbank</title>
-    <style>
-      body { font-family: system-ui, sans-serif; margin: 0; background: #f8fafc; }
-      .wrap { max-width: 980px; margin: 0 auto; padding: 20px; }
-      .card { background: white; border-radius: 12px; padding: 16px; box-shadow: 0 6px 24px rgba(0,0,0,0.06); }
-      .filters { display: grid; grid-template-columns: 1fr 1fr 2fr auto; gap: 8px; margin-bottom: 12px; }
-      input, select, button { padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 14px; }
-      button { background: #2563eb; color: #fff; border: none; font-weight: 700; cursor: pointer; }
-      table { width: 100%; border-collapse: collapse; }
-      th, td { text-align: left; padding: 8px; border-bottom: 1px solid #e2e8f0; }
-      th { background: #f1f5f9; }
-      .muted { color: #64748b; font-size: 13px; }
-    </style>
-  </head>
-  <body>
-    <div class="wrap">
-      <h1>Klassens ordbank</h1>
-      <p class="muted">Filtrera ordklass, språk och sökord.</p>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Klassens ordbank</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%232563eb'/><rect x='14' y='18' width='72' height='13' rx='4' fill='white'/><rect x='14' y='38' width='72' height='11' rx='4' fill='white' opacity='0.8'/><rect x='14' y='56' width='72' height='11' rx='4' fill='white' opacity='0.6'/><rect x='14' y='74' width='45' height='11' rx='4' fill='white' opacity='0.4'/></svg>">
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; background: #f8fafc; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 20px; }
+    .card { background: white; border-radius: 12px; padding: 16px; box-shadow: 0 6px 24px rgba(0,0,0,0.06); }
+    .filters { display: grid; grid-template-columns: 1fr 1fr 2fr auto; gap: 8px; margin-bottom: 12px; }
+    input, select, button { padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 14px; }
+    button { background: #2563eb; color: #fff; border: none; font-weight: 700; cursor: pointer; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 8px; border-bottom: 1px solid #e2e8f0; }
+    th { background: #f1f5f9; }
+    tbody tr { cursor: pointer; }
+    tbody tr:hover { background: #f0f4ff; }
+    .muted { color: #64748b; font-size: 13px; }
 
-      <div class="card">
-        <div class="filters">
-          <select id="ordklass">
-            <option value="">Alla ordklasser</option>
-            <option value="verb">Verb</option>
-            <option value="substantiv">Substantiv</option>
-            <option value="adjektiv">Adjektiv</option>
-            <option value="okänd">Okänd</option>
-          </select>
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      place-items: center;
+      z-index: 100;
+    }
+    .modal-overlay.open { display: grid; }
+    .modal-card {
+      background: white;
+      border-radius: 16px;
+      padding: 28px;
+      min-width: 280px;
+      max-width: min(440px, 90vw);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    }
+    .modal-card h2 { margin-top: 0; color: #1e3a8a; }
+    .modal-card table { width: 100%; }
+    .modal-card td { padding: 6px 0; vertical-align: top; }
+    .modal-card td:first-child { font-weight: 600; color: #374151; width: 110px; }
+    .modal-close {
+      margin-top: 16px;
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      background: #e0e7ff;
+      color: #2563eb;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .modal-close:hover { background: #c7d2fe; }
+    .no-translations { color: #9ca3af; font-style: italic; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Klassens ordbank</h1>
+    <p class="muted">Klicka på ett ord för att se översättningar. Filtrera ordklass, språk och sökord.</p>
 
-         <select id="language">
-  <option value="">— välj språk —</option>
-  <option value="sv">Svenska</option>
-  <option value="en">Engelska</option>
-  <option value="es">Spanska</option>
-  <option value="ar">Arabiska</option>
-  <option value="ur">Urdu</option>
-  <option value="tr">Turkiska</option>
-  <option value="zh">Mandarin</option>
-  <option value="th">Thai</option>
-  <option value="ti">Tigrinja</option>
-  <option value="mn">Mongoliska</option>
-  <option value="uk">Ukrainska</option>
-</select>
+    <div class="card">
+      <div class="filters">
+        <select id="ordklass">
+          <option value="">Alla ordklasser</option>
+          <option value="verb">Verb</option>
+          <option value="substantiv">Substantiv</option>
+          <option value="adjektiv">Adjektiv</option>
+          <option value="okänd">Okänd</option>
+        </select>
 
-          <input id="q" placeholder="Sök ord eller översättning" />
-          <button id="reload">Uppdatera</button>
-        </div>
+        <select id="language">
+          <option value="">— välj språk —</option>
+          <option value="sv">Svenska</option>
+          <option value="en">Engelska</option>
+          <option value="es">Spanska</option>
+          <option value="ar">Arabiska</option>
+          <option value="ur">Urdu</option>
+          <option value="tr">Turkiska</option>
+          <option value="zh">Mandarin</option>
+          <option value="th">Thai</option>
+          <option value="ti">Tigrinja</option>
+          <option value="mn">Mongoliska</option>
+          <option value="uk">Ukrainska</option>
+        </select>
 
-        <div id="count" class="muted"></div>
-        <table>
-          <thead>
-            <tr>
-              <th>Ord</th>
-              <th>Översättning</th>
-              <th>Ordklass</th>
-              <th>Frekvens</th>
-              <th>Dekl.</th>
-              <th>Verbgrupp</th>
-            </tr>
-          </thead>
-          <tbody id="rows"></tbody>
-        </table>
+        <input id="q" placeholder="Sök ord eller översättning">
+        <button id="reload">Uppdatera</button>
       </div>
+
+      <div id="count" class="muted"></div>
+      <table>
+        <thead>
+          <tr>
+            <th>Ord</th>
+            <th>Översättning</th>
+            <th>Ordklass</th>
+            <th>Frekvens</th>
+            <th>Dekl.</th>
+            <th>Verbgrupp</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
     </div>
+  </div>
 
-    <script>
-      const ordklass = document.getElementById('ordklass');
-      const language = document.getElementById('language');
-      const q = document.getElementById('q');
+  <div id="modal" class="modal-overlay" onclick="closeModal(event)">
+    <div class="modal-card">
+      <h2 id="modal-word"></h2>
+      <table id="modal-translations"></table>
+      <p id="modal-empty" class="no-translations" style="display:none">Inga översättningar inlagda ännu.</p>
+      <button class="modal-close" onclick="document.getElementById('modal').classList.remove('open')">Stäng</button>
+    </div>
+  </div>
+
+  <script>
+    const LANGUAGE_NAMES = {
+      sv: 'Svenska', en: 'Engelska', es: 'Spanska', ar: 'Arabiska',
+      ur: 'Urdu', tr: 'Turkiska', zh: 'Mandarin', th: 'Thai',
+      ti: 'Tigrinja', mn: 'Mongoliska', uk: 'Ukrainska'
+    };
+
+    let allRows = [];
+
+    function render(rows) {
+      allRows = rows;
       const rowsEl = document.getElementById('rows');
-      const countEl = document.getElementById('count');
-
-      function render(rows) {
-        rowsEl.innerHTML = '';
-        rows.forEach((r) => {
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td>${r.lemma || ''}</td>
-            <td>${r.translation || ''}</td>
-            <td>${r.ordklass || ''}</td>
-            <td>${r.frekvens || ''}</td>
-            <td>${r.deklination || ''}</td>
-            <td>${r.verbgrupp || ''}</td>
-          `;
-          rowsEl.appendChild(tr);
+      rowsEl.innerHTML = '';
+      rows.forEach((r, i) => {
+        const tr = document.createElement('tr');
+        tr.title = 'Klicka för att se översättningar';
+        tr.addEventListener('click', () => openModal(i));
+        [r.lemma, r.translation, r.ordklass, r.frekvens, r.deklination, r.verbgrupp].forEach(val => {
+          const td = document.createElement('td');
+          td.textContent = val || '';
+          tr.appendChild(td);
         });
-        countEl.textContent = `${rows.length} ord visas.`;
-      }
+        rowsEl.appendChild(tr);
+      });
+      document.getElementById('count').textContent = `${rows.length} ord visas.`;
+    }
 
-      function load() {
-        google.script.run
-          .withSuccessHandler(render)
-          .hamtaOrdbankData({
-            ordklass: ordklass.value,
-            language: language.value,
-            q: q.value.trim()
-          });
-      }
+    function openModal(index) {
+      const r = allRows[index];
+      document.getElementById('modal-word').textContent = r.lemma;
 
-      document.getElementById('reload').addEventListener('click', load);
-      q.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') load();
+      const table = document.getElementById('modal-translations');
+      table.innerHTML = '';
+      let hasAny = false;
+
+      Object.entries(LANGUAGE_NAMES).forEach(([code, name]) => {
+        const val = r.translations && r.translations[code];
+        if (!val) return;
+        hasAny = true;
+        const row = document.createElement('tr');
+        const tdName = document.createElement('td');
+        tdName.textContent = name;
+        const tdVal = document.createElement('td');
+        tdVal.textContent = val;
+        tdVal.dir = 'auto';
+        row.appendChild(tdName);
+        row.appendChild(tdVal);
+        table.appendChild(row);
       });
 
-      load();
-    </script>
-  </body>
+      document.getElementById('modal-empty').style.display = hasAny ? 'none' : '';
+      document.getElementById('modal').classList.add('open');
+    }
+
+    function closeModal(e) {
+      if (e.target === document.getElementById('modal')) {
+        document.getElementById('modal').classList.remove('open');
+      }
+    }
+
+    function load() {
+      google.script.run
+        .withSuccessHandler(render)
+        .hamtaOrdbankData({
+          ordklass: document.getElementById('ordklass').value,
+          language: document.getElementById('language').value,
+          q: document.getElementById('q').value.trim()
+        });
+    }
+
+    document.getElementById('reload').addEventListener('click', load);
+    document.getElementById('q').addEventListener('keydown', e => { if (e.key === 'Enter') load(); });
+
+    load();
+  </script>
+</body>
 </html>
