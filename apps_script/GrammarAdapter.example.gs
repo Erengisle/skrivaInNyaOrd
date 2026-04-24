@@ -248,7 +248,7 @@ function hamtaOrdbankData(filters) {
   const headers = values[0].map(h => (h || '').toString().toLowerCase());
   const rows = values.slice(1);
 
-  const language = ((filters && filters.language) || 'sv').toLowerCase();
+  const language = ((filters && filters.language) || '').toLowerCase();
   const ordklassFilter = ((filters && filters.ordklass) || '').toLowerCase();
   const q = ((filters && filters.q) || '').toLowerCase();
 
