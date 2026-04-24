@@ -347,19 +347,32 @@
       const counts = {};
       words.forEach(w => { counts[w.ordklass] = (counts[w.ordklass] || 0) + 1; });
       const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-      ordklassChart.data.labels = entries.map(e => e[0]);
+      const totalWords = entries.reduce((s, e) => s + e[1], 0);
+      ordklassChart.data.labels = entries.map(e => `${e[0]} (${Math.round(e[1] / totalWords * 100)}%)`);
       ordklassChart.data.datasets[0].data = entries.map(e => e[1]);
       ordklassChart.data.datasets[0].backgroundColor = entries.map(e => ORDKLASS_COLORS[e[0]] || '#94a3b8');
       ordklassChart.update();
     }
 
     function loadStats() {
-      google.script.run.withSuccessHandler(renderStats).getDashboardData();
+      google.script.run
+        .withSuccessHandler(renderStats)
+        .withFailureHandler(err => {
+          document.getElementById('total').textContent = '!';
+          document.getElementById('student-count').textContent = '!';
+          console.error('getDashboardData fel:', err);
+        })
+        .getDashboardData();
     }
 
     function loadWords() {
       document.getElementById('words-status').textContent = 'Laddar...';
-      google.script.run.withSuccessHandler(renderWords).getDashboardWords();
+      google.script.run
+        .withSuccessHandler(renderWords)
+        .withFailureHandler(err => {
+          document.getElementById('words-status').textContent = 'Fel: ' + err.message;
+        })
+        .getDashboardWords();
     }
 
     document.getElementById('refresh-words').addEventListener('click', loadWords);
