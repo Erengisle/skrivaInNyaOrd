@@ -10,13 +10,19 @@
  *
  * Kom igång:
  *   1. Skapa ett nytt Google Sheets-dokument
- *   2. Tillägg → Apps Script → klistra in NounGame.gs och NounAdmin.gs
+ *   2. Tillägg → Apps Script → klistra in NounGame.gs
  *   3. Lägg till NounGame.html som en HTML-fil
  *   4. Kör: Spelverktyg → Initiera Ordlista-blad
- *   5. Kör: Spelverktyg → Importera från Ordbank  (eller lägg till ord manuellt)
- *   6. Kör: Spelverktyg → Berika med genus via SALDO
+ *   5. Kör: Spelverktyg → Importera från Kelly-listan
+ *   6. Kör: Spelverktyg → Berika med genus via SALDO  (för ord som saknar genus)
  *   7. Publicera → Distribuera som webbapp
+ *
+ * Kelly-lista (källa): CC-BY-SA, Göteborgs universitet / Språkbanken
  */
+
+// ID och fliks-GID för Kelly-listan (ditt Google Sheets-dokument)
+var KELLY_SHEET_ID  = '1G2B06J0cHSdhj5BMxBvdZui2YI7UFxDglBBoGmfTHxM';
+var KELLY_SHEET_GID = 302703246;
 
 // ─── Webb-ingång ────────────────────────────────────────────────────────────────
 
@@ -93,11 +99,117 @@ function sparaPoang(payload) {
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('Spelverktyg')
-    .addItem('Initiera Ordlista-blad',                    'initieraOrdlista')
-    .addItem('Importera från Ordbank (annat dokument)',   'importeraFranOrdbank')
+    .addItem('Initiera Ordlista-blad',              'initieraOrdlista')
+    .addItem('Importera från Kelly-listan',         'importeraFranKelly')
+    .addItem('Importera från Ordbank (Dokument 1)', 'importeraFranOrdbank')
     .addSeparator()
-    .addItem('Berika med genus via SALDO',                'berikaMedSaldoGenus')
+    .addItem('Berika med genus via SALDO',          'berikaMedSaldoGenus')
     .addToUi();
+}
+
+// ─── Kelly-import ──────────────────────────────────────────────────────────────
+
+/**
+ * Importerar substantiv från Kelly-listan (ditt Google Sheets-dokument).
+ * Kolumn A = genus (en/ett eller tomt), Kolumn B = grundform.
+ * Ord utan genus markeras för SALDO-berikning efteråt.
+ */
+function importeraFranKelly() {
+  var kellySS;
+  try {
+    kellySS = SpreadsheetApp.openById(KELLY_SHEET_ID);
+  } catch (e) {
+    SpreadsheetApp.getUi().alert(
+      'Kunde inte öppna Kelly-dokumentet.\n\n' +
+      'Kontrollera att dokumentet är delat (minst "Visa") med samma Google-konto ' +
+      'som kör det här skriptet.\n\nFel: ' + e.message
+    );
+    return;
+  }
+
+  // Hitta rätt flik via GID
+  var kellySh = null;
+  var allSheets = kellySS.getSheets();
+  for (var i = 0; i < allSheets.length; i++) {
+    if (allSheets[i].getSheetId() === KELLY_SHEET_GID) {
+      kellySh = allSheets[i];
+      break;
+    }
+  }
+  if (!kellySh) kellySh = allSheets[0]; // fallback: första fliken
+
+  var lastRow = kellySh.getLastRow();
+  if (lastRow < 1) {
+    SpreadsheetApp.getUi().alert('Kelly-fliken verkar vara tom.');
+    return;
+  }
+
+  // Läs kolumn A (genus) + kolumn B (ord) i ett anrop
+  var raw = kellySh.getRange(1, 1, lastRow, 2).getValues();
+
+  // Förbered Ordlistan
+  initieraOrdlista();
+  var dest    = SpreadsheetApp.getActive().getSheetByName('Ordlista');
+  var headers = dest.getRange(1, 1, 1, dest.getLastColumn()).getValues()[0]
+    .map(function(h) { return h.toString().toLowerCase(); });
+
+  var iOrd   = headers.indexOf('ord');
+  var iGenus = headers.indexOf('genus');
+  var iAktiv = headers.indexOf('aktiv');
+
+  // Bygg uppslagstabell för befintliga ord (undvik dubbletter)
+  var befintliga = {};
+  var destLast   = dest.getLastRow();
+  if (destLast >= 2) {
+    dest.getRange(2, iOrd + 1, destLast - 1, 1).getValues()
+      .forEach(function(r) {
+        befintliga[(r[0] || '').toString().toLowerCase()] = true;
+      });
+  }
+
+  var nyaRader   = [];
+  var medGenus   = 0;
+  var utanGenus  = 0;
+  var dubbletter = 0;
+
+  raw.forEach(function(row) {
+    var genus = (row[0] || '').toString().trim().toLowerCase();
+    var ord   = (row[1] || '').toString().trim().toLowerCase();
+    if (!ord) return;
+
+    if (befintliga[ord]) { dubbletter++; return; }
+    befintliga[ord] = true;
+
+    var genusVal = (genus === 'en' || genus === 'ett') ? genus : '';
+    var rad      = new Array(headers.length).fill('');
+    if (iOrd   >= 0) rad[iOrd]   = ord;
+    if (iGenus >= 0) rad[iGenus] = genusVal;
+    if (iAktiv >= 0) rad[iAktiv] = 'ja';
+
+    nyaRader.push(rad);
+    if (genusVal) medGenus++;
+    else          utanGenus++;
+  });
+
+  if (nyaRader.length === 0) {
+    SpreadsheetApp.getActive().toast(
+      'Inga nya ord att importera — alla finns redan i Ordlistan.',
+      'Kelly-import', 6
+    );
+    return;
+  }
+
+  // Batch-skriv (ett enda anrop till Sheets API)
+  dest.getRange(dest.getLastRow() + 1, 1, nyaRader.length, headers.length)
+    .setValues(nyaRader);
+
+  SpreadsheetApp.getActive().toast(
+    nyaRader.length + ' ord importerade  (' +
+    dubbletter + ' dubbletter hoppades över)\n' +
+    '✓ Med genus: ' + medGenus + '   ? Saknar genus: ' + utanGenus + '\n' +
+    'Kör "Berika med genus via SALDO" för att fylla i de som saknas.',
+    'Kelly-import klar', 12
+  );
 }
 
 /**
