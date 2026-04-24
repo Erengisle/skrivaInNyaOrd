@@ -377,7 +377,7 @@ function analyseraGrammatikMedAI() {
   if (!apiKey) { SpreadsheetApp.getUi().alert('Lägg till din API-nyckel via Ordverktyg → Ange API-nyckel.'); return; }
 
   const ss = SpreadsheetApp.getActive();
-  const oversikt = ss.getSheetByName(OUTPUT_SHEET);
+  const oversikt = ss.getSheetByName(CONFIG.OUTPUT_SHEET);
   if (!oversikt) { SpreadsheetApp.getUi().alert('Kör "Uppdatera översikt" först.'); return; }
 
   const values = oversikt.getDataRange().getValues();
@@ -394,7 +394,7 @@ function analyseraGrammatikMedAI() {
   if (!words.length) return;
 
   // Build Ordbank lookup so we can update grammar there too (without wiping translations)
-  const wordbank = ss.getSheetByName(WORDBANK_SHEET);
+  const wordbank = ss.getSheetByName(CONFIG.WORDBANK_SHEET);
   let wbIdx = null;
   const wbLemmaRow = {};
   if (wordbank) {
