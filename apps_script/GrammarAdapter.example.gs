@@ -469,19 +469,40 @@ function analyseraGrammatikMedAI() {
 }
 
 function anropaClaudeGrammatik_(apiKey, lemmas) {
-  const prompt = `Analyze these Swedish words grammatically.
-Reply with ONLY a valid JSON object — no explanation, no markdown.
+  const prompt = `You are an expert in Swedish morphology. Analyze these Swedish words grammatically.
+Reply with ONLY a valid JSON object — no explanation, no markdown, no code fences.
 
-Each key is a Swedish word. The value is an object with:
+CRITICAL RULES — read carefully before classifying:
+
+ADVERBS vs ADJECTIVES:
+- Adverbs (e.g. snabbt, fort, gärna, ofta, alltid, aldrig, inte, bara, redan) → ordklass "okänd"
+- Adjectives inflect for gender/number: snabb/snabbt/snabba. If a word is only used to modify verbs or is invariant, it is an adverb, NOT an adjektiv.
+- Words ending in -t that are adverbial forms (fort, tyst, sent, tidigt) → "okänd"
+
+VERB GROUP RULES (based on imperativ = verb stem):
+- Grupp 1: infinitiv ends in unstressed -a. Imperativ = stem (e.g. arbeta→arbeta). Presens = stem+ar, preteritum = stem+ade, supinum = stem+at.
+- Grupp 2a: imperativ ends in VOICED consonant (b, d, g, v, l, m, n, r). Presens = stem+er, preteritum = stem+de, supinum = stem+t. (leva→lever/levde/levt, stänga→stäng/stänger/stängde/stängt)
+- Grupp 2b: imperativ ends in VOICELESS consonant (k, p, t, s, f) or cluster. Presens = stem+er, preteritum = stem+te, supinum = stem+t. (söka→sök/söker/sökte/sökt, köpa→köp/köper/köpte/köpt)
+- Grupp 3: monosyllabic stem, often ends in vowel. Presens = stem+r, preteritum = stem+dde, supinum = stem+tt. (tro→tror/trodde/trott, bo→bor/bodde/bott)
+- Grupp 4: strong/irregular — vowel changes in preteritum. (skriva→skriver/skrev/skrivit, binda→binder/band/bundit, dricka→dricker/drack/druckit)
+
+NOUN DECLENSION:
+- Dekl 1: en-words ending in -a, plural -or (flicka, stuga)
+- Dekl 2: en-words, plural -ar (bil, pojke, arm)
+- Dekl 3: en-words, plural -er (tid, stad, hand)
+- Dekl 4: ett-words, plural -n (äpple, hjärta)
+- Dekl 5: invariant plural (hus, barn, rum)
+
+Each key = a Swedish word. Value = object with:
 - ordklass: "verb", "substantiv", "adjektiv", or "okänd"
-- For verbs: verbgrupp ("1","2a","2b","3","4"), infinitiv, imperativ, presens, preteritum, supinum
-- For nouns: deklination ("1","2","3","4","5")
-- For others: just ordklass
+- verbs: verbgrupp, infinitiv, imperativ, presens, preteritum, supinum
+- nouns: deklination
+- others: just ordklass
 
 Swedish words: ${JSON.stringify(lemmas)}
 
 Example:
-{"springa":{"ordklass":"verb","verbgrupp":"4","infinitiv":"springa","imperativ":"spring","presens":"springer","preteritum":"sprang","supinum":"sprungit"},"hus":{"ordklass":"substantiv","deklination":"5"},"snabb":{"ordklass":"adjektiv"}}`;
+{"springa":{"ordklass":"verb","verbgrupp":"4","infinitiv":"springa","imperativ":"spring","presens":"springer","preteritum":"sprang","supinum":"sprungit"},"hus":{"ordklass":"substantiv","deklination":"5"},"snabb":{"ordklass":"adjektiv"},"fort":{"ordklass":"okänd"},"söka":{"ordklass":"verb","verbgrupp":"2b","infinitiv":"söka","imperativ":"sök","presens":"söker","preteritum":"sökte","supinum":"sökt"}}`;
 
   const response = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
     method: 'post',
