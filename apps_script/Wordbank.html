@@ -14,7 +14,7 @@
     button { background: #2563eb; color: #fff; border: none; font-weight: 700; cursor: pointer; }
     table { width: 100%; border-collapse: collapse; }
     th, td { text-align: left; padding: 8px; border-bottom: 1px solid #e2e8f0; }
-    th { background: #f1f5f9; }
+    th { background: #f1f5f9; position: sticky; top: 0; z-index: 1; }
     tbody tr { cursor: pointer; }
     tbody tr:hover { background: #f0f4ff; }
     .muted { color: #64748b; font-size: 13px; }
@@ -94,10 +94,9 @@
         <thead>
           <tr>
             <th>Ord</th>
-            <th>Översättning</th>
             <th>Ordklass</th>
             <th>Frekvens</th>
-            <th>Dekl.</th>
+            <th>Deklination (subst)</th>
             <th>Verbgrupp</th>
           </tr>
         </thead>
@@ -132,7 +131,7 @@
         const tr = document.createElement('tr');
         tr.title = 'Klicka för att se översättningar';
         tr.addEventListener('click', () => openModal(i));
-        [r.lemma, r.translation, r.ordklass, r.frekvens, r.deklination, r.verbgrupp].forEach(val => {
+        [r.lemma, r.ordklass, r.frekvens, r.deklination, r.verbgrupp].forEach(val => {
           const td = document.createElement('td');
           td.textContent = val || '';
           tr.appendChild(td);

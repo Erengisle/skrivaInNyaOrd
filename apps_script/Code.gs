@@ -11,14 +11,15 @@ function getDashboardData() {
 
     stats.totalWords++;
     stats.perStudent[student] = (stats.perStudent[student] || 0) + 1;
-    stats.lastEntries.push({ time, student, word });
+    const timeStr = time instanceof Date ? time.toISOString() : String(time);
+    stats.lastEntries.push({ time: timeStr, student: String(student), word: String(word) });
 
     if (!stats.studentDetails[student]) {
-      stats.studentDetails[student] = { count: 0, lastTime: time };
+      stats.studentDetails[student] = { count: 0, lastTime: timeStr };
     }
     stats.studentDetails[student].count++;
-    if (!stats.studentDetails[student].lastTime || time > stats.studentDetails[student].lastTime) {
-      stats.studentDetails[student].lastTime = time;
+    if (timeStr > stats.studentDetails[student].lastTime) {
+      stats.studentDetails[student].lastTime = timeStr;
     }
   }
 
