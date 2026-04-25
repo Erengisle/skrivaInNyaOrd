@@ -107,6 +107,18 @@ const GRUPP4_VERB = {
   leva:      { imperativ:'lev',      presens:'lever',     preteritum:'levde',   supinum:'levt'      },
   ligga:     { imperativ:'ligg',     presens:'ligger',    preteritum:'låg',     supinum:'legat'     },
   heta:      { imperativ:'heta',     presens:'heter',     preteritum:'hette',   supinum:'hetat'     },
+  // From svenska_verb_lista.pdf — compound/prefixed strong verbs
+  anhålla:   { imperativ:'anhåll',   presens:'anhåller',  preteritum:'anhöll',  supinum:'anhållit'  },
+  avlida:    { imperativ:'avlid',    presens:'avlider',   preteritum:'avled',   supinum:'avlidit'   },
+  bedriva:   { imperativ:'bedriv',   presens:'bedriver',  preteritum:'bedrev',  supinum:'bedrivit'  },
+  begripa:   { imperativ:'begrip',   presens:'begriper',  preteritum:'begrep',  supinum:'begripit'  },
+  behålla:   { imperativ:'behåll',   presens:'behåller',  preteritum:'behöll',  supinum:'behållit'  },
+  beskära:   { imperativ:'beskär',   presens:'beskär',    preteritum:'beskar',  supinum:'beskurit'  },
+  finnas:    { imperativ:'',         presens:'finns',     preteritum:'fanns',   supinum:'funnits'   },
+  förbjuda:  { imperativ:'förbjud',  presens:'förbjuder', preteritum:'förbjöd', supinum:'förbjudit' },
+  föreslå:   { imperativ:'föreslå',  presens:'föreslår',  preteritum:'föreslog',supinum:'föreslagit'},
+  förtiga:   { imperativ:'förtig',   presens:'förtiger',  preteritum:'förteg',  supinum:'förtigit'  },
+  svärja:    { imperativ:'svärj',    presens:'svärjer',   preteritum:'svor',    supinum:'svurit'    },
 };
 
 const LANGUAGES = ['sv', 'en', 'es', 'ar', 'ur', 'tr', 'zh', 'th', 'ti', 'mn', 'uk'];
