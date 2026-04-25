@@ -476,7 +476,16 @@ function konfigureraOrdklassDropdown() {
     if (col < 0) return;
     const lastRow = sheet.getLastRow();
     if (lastRow < 2) return;
-    sheet.getRange(2, col + 1, lastRow - 1, 1).setDataValidation(rule);
+    const range = sheet.getRange(2, col + 1, lastRow - 1, 1);
+    range.setDataValidation(rule);
+
+    // Replace any existing "okänd" values with "övrigt"
+    const values = range.getValues();
+    let changed = false;
+    values.forEach(row => {
+      if (row[0] === 'okänd') { row[0] = 'övrigt'; changed = true; }
+    });
+    if (changed) range.setValues(values);
   });
 
   SpreadsheetApp.getActive().toast('Ordklass-dropdown tillagd i Översikt och Ordbank.', 'Klar', 4);
