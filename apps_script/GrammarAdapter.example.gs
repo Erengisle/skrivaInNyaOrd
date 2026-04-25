@@ -3,24 +3,110 @@
  * counting frequency, and estimating Swedish morphology.
  */
 
-// Imported logic baseline from:
-// - src/data/questions_verb.ts
-// - src/components/GrammarApp.tsx (noun declension group descriptions)
-const VERB_GROUP_FROM_IMPERATIV = {
-  // Group 1
-  måla: '1', jobba: '1', starta: '1', titta: '1', hoppas: '1',
-  // Group 2a
-  bygg: '2a', kör: '2a', lägg: '2a', sälj: '2a', gör: '2a', sätt: '2a',
-  // Group 2b
-  sök: '2b', hjälp: '2b', sköt: '2b', lås: '2b', väx: '2b',
-  // Group 3
-  tro: '3', bo: '3', sy: '3', klä: '3', nå: '3',
-  // Group 4
-  bind: '4', drick: '4', spring: '4', sitt: '4', vinn: '4', skriv: '4',
-  stig: '4', bit: '4', bli: '4', driv: '4', bjud: '4', ljug: '4', bryt: '4',
-  flyg: '4', frys: '4', stryk: '4', dra: '4', ta: '4', slå: '4', bär: '4',
-  skär: '4', stjäl: '4', gråt: '4', låt: '4', fall: '4', håll: '4', kom: '4',
-  var: '4', se: '4', gå: '4'
+// Comprehensive group 4 lookup table built from "Starka verb, lista OCR.pdf"
+// and "Lathund för verbgrupperna.xlsx". Key = infinitiv.
+const GRUPP4_VERB = {
+  // a → u
+  binda:     { imperativ:'bind',     presens:'binder',    preteritum:'band',    supinum:'bundit'    },
+  brinna:    { imperativ:'brinn',    presens:'brinner',   preteritum:'brann',   supinum:'brunnit'   },
+  brista:    { imperativ:'brist',    presens:'brister',   preteritum:'brast',   supinum:'brustit'   },
+  dricka:    { imperativ:'drick',    presens:'dricker',   preteritum:'drack',   supinum:'druckit'   },
+  finna:     { imperativ:'finn',     presens:'finner',    preteritum:'fann',    supinum:'funnit'    },
+  försvinna: { imperativ:'försvinn', presens:'försvinner',preteritum:'försvann',supinum:'försvunnit'},
+  hinna:     { imperativ:'hinn',     presens:'hinner',    preteritum:'hann',    supinum:'hunnit'    },
+  rinna:     { imperativ:'rinn',     presens:'rinner',    preteritum:'rann',    supinum:'runnit'    },
+  sitta:     { imperativ:'sitt',     presens:'sitter',    preteritum:'satt',    supinum:'suttit'    },
+  slippa:    { imperativ:'slipp',    presens:'slipper',   preteritum:'slapp',   supinum:'sluppit'   },
+  spinna:    { imperativ:'spinn',    presens:'spinner',   preteritum:'spann',   supinum:'spunnit'   },
+  spricka:   { imperativ:'sprick',   presens:'spricker',  preteritum:'sprack',  supinum:'spruckit'  },
+  springa:   { imperativ:'spring',   presens:'springer',  preteritum:'sprang',  supinum:'sprungit'  },
+  sticka:    { imperativ:'stick',    presens:'sticker',   preteritum:'stack',   supinum:'stuckit'   },
+  stinka:    { imperativ:'stink',    presens:'stinker',   preteritum:'stank',   supinum:'stunkit'   },
+  vinna:     { imperativ:'vinn',     presens:'vinner',    preteritum:'vann',    supinum:'vunnit'    },
+  // i → e → i
+  bita:      { imperativ:'bit',      presens:'biter',     preteritum:'bet',     supinum:'bitit'     },
+  bli:       { imperativ:'bli',      presens:'blir',      preteritum:'blev',    supinum:'blivit'    },
+  bliva:     { imperativ:'bli',      presens:'blir',      preteritum:'blev',    supinum:'blivit'    },
+  driva:     { imperativ:'driv',     presens:'driver',    preteritum:'drev',    supinum:'drivit'    },
+  glida:     { imperativ:'glid',     presens:'glider',    preteritum:'gled',    supinum:'glidit'    },
+  gnida:     { imperativ:'gnid',     presens:'gnider',    preteritum:'gned',    supinum:'gnidit'    },
+  gripa:     { imperativ:'grip',     presens:'griper',    preteritum:'grep',    supinum:'gripit'    },
+  kliva:     { imperativ:'kliv',     presens:'kliver',    preteritum:'klev',    supinum:'klivit'    },
+  knipa:     { imperativ:'knip',     presens:'kniper',    preteritum:'knep',    supinum:'knipit'    },
+  lida:      { imperativ:'lid',      presens:'lider',     preteritum:'led',     supinum:'lidit'     },
+  pipa:      { imperativ:'pip',      presens:'piper',     preteritum:'pep',     supinum:'pipit'     },
+  rida:      { imperativ:'rid',      presens:'rider',     preteritum:'red',     supinum:'ridit'     },
+  riva:      { imperativ:'riv',      presens:'river',     preteritum:'rev',     supinum:'rivit'     },
+  skina:     { imperativ:'skin',     presens:'skiner',    preteritum:'sken',    supinum:'skinit'    },
+  skrika:    { imperativ:'skrik',    presens:'skriker',   preteritum:'skrek',   supinum:'skrikit'   },
+  skriva:    { imperativ:'skriv',    presens:'skriver',   preteritum:'skrev',   supinum:'skrivit'   },
+  slita:     { imperativ:'slit',     presens:'sliter',    preteritum:'slet',    supinum:'slitit'    },
+  smita:     { imperativ:'smit',     presens:'smiter',    preteritum:'smet',    supinum:'smitit'    },
+  stiga:     { imperativ:'stig',     presens:'stiger',    preteritum:'steg',    supinum:'stigit'    },
+  strida:    { imperativ:'strid',    presens:'strider',   preteritum:'stred',   supinum:'stridit'   },
+  svida:     { imperativ:'svid',     presens:'svider',    preteritum:'sved',    supinum:'svidit'    },
+  svika:     { imperativ:'svik',     presens:'sviker',    preteritum:'svek',    supinum:'svikit'    },
+  tiga:      { imperativ:'tig',      presens:'tiger',     preteritum:'teg',     supinum:'tigit'     },
+  vrida:     { imperativ:'vrid',     presens:'vrider',    preteritum:'vred',    supinum:'vridit'    },
+  // ju → jö → u
+  bjuda:     { imperativ:'bjud',     presens:'bjuder',    preteritum:'bjöd',    supinum:'bjudit'    },
+  hugga:     { imperativ:'hugg',     presens:'hugger',    preteritum:'högg',    supinum:'huggit'    },
+  ljuga:     { imperativ:'ljug',     presens:'ljuger',    preteritum:'ljög',    supinum:'ljugit'    },
+  njuta:     { imperativ:'njut',     presens:'njuter',    preteritum:'njöt',    supinum:'njutit'    },
+  sjuda:     { imperativ:'sjud',     presens:'sjuder',    preteritum:'sjöd',    supinum:'sjudit'    },
+  sjunga:    { imperativ:'sjung',    presens:'sjunger',   preteritum:'sjöng',   supinum:'sjungit'   },
+  sjunka:    { imperativ:'sjunk',    presens:'sjunker',   preteritum:'sjönk',   supinum:'sjunkit'   },
+  skjuta:    { imperativ:'skjut',    presens:'skjuter',   preteritum:'sköt',    supinum:'skjutit'   },
+  suga:      { imperativ:'sug',      presens:'suger',     preteritum:'sög',     supinum:'sugit'     },
+  supa:      { imperativ:'sup',      presens:'super',     preteritum:'söp',     supinum:'supit'     },
+  tjuta:     { imperativ:'tjut',     presens:'tjuter',    preteritum:'tjöt',    supinum:'tjutit'    },
+  // y → ö → u
+  bryta:     { imperativ:'bryt',     presens:'bryter',    preteritum:'bröt',    supinum:'brutit'    },
+  flyga:     { imperativ:'flyg',     presens:'flyger',    preteritum:'flög',    supinum:'flugit'    },
+  flyta:     { imperativ:'flyt',     presens:'flyter',    preteritum:'flöt',    supinum:'flutit'    },
+  frysa:     { imperativ:'frys',     presens:'fryser',    preteritum:'frös',    supinum:'frusit'    },
+  knyta:     { imperativ:'knyt',     presens:'knyter',    preteritum:'knöt',    supinum:'knutit'    },
+  krypa:     { imperativ:'kryp',     presens:'kryper',    preteritum:'kröp',    supinum:'krupit'    },
+  skryta:    { imperativ:'skryt',    presens:'skryter',   preteritum:'skröt',   supinum:'skrutit'   },
+  smyga:     { imperativ:'smyg',     presens:'smyger',    preteritum:'smög',    supinum:'smugit'    },
+  snyta:     { imperativ:'snyt',     presens:'snyter',    preteritum:'snöt',    supinum:'snutit'    },
+  stryka:    { imperativ:'stryk',    presens:'stryker',   preteritum:'strök',   supinum:'strukit'   },
+  // Mixed strong
+  dra:       { imperativ:'dra',      presens:'drar',      preteritum:'drog',    supinum:'dragit'    },
+  draga:     { imperativ:'dra',      presens:'drar',      preteritum:'drog',    supinum:'dragit'    },
+  fara:      { imperativ:'far',      presens:'far',       preteritum:'for',     supinum:'farit'     },
+  ta:        { imperativ:'ta',       presens:'tar',       preteritum:'tog',     supinum:'tagit'     },
+  taga:      { imperativ:'ta',       presens:'tar',       preteritum:'tog',     supinum:'tagit'     },
+  slå:       { imperativ:'slå',      presens:'slår',      preteritum:'slog',    supinum:'slagit'    },
+  bära:      { imperativ:'bär',      presens:'bär',       preteritum:'bar',     supinum:'burit'     },
+  skära:     { imperativ:'skär',     presens:'skär',      preteritum:'skar',    supinum:'skurit'    },
+  stjäla:    { imperativ:'stjäl',    presens:'stjäl',     preteritum:'stal',    supinum:'stulit'    },
+  svära:     { imperativ:'svär',     presens:'svär',      preteritum:'svor',    supinum:'svurit'    },
+  gråta:     { imperativ:'gråt',     presens:'gråter',    preteritum:'grät',    supinum:'gråtit'    },
+  låta:      { imperativ:'låt',      presens:'låter',     preteritum:'lät',     supinum:'låtit'     },
+  äta:       { imperativ:'ät',       presens:'äter',      preteritum:'åt',      supinum:'ätit'      },
+  falla:     { imperativ:'fall',     presens:'faller',    preteritum:'föll',    supinum:'fallit'    },
+  hålla:     { imperativ:'håll',     presens:'håller',    preteritum:'höll',    supinum:'hållit'    },
+  // Irregular
+  vara:      { imperativ:'var',      presens:'är',        preteritum:'var',     supinum:'varit'     },
+  gå:        { imperativ:'gå',       presens:'går',       preteritum:'gick',    supinum:'gått'      },
+  komma:     { imperativ:'kom',      presens:'kommer',    preteritum:'kom',     supinum:'kommit'    },
+  göra:      { imperativ:'gör',      presens:'gör',       preteritum:'gjorde',  supinum:'gjort'     },
+  se:        { imperativ:'se',       presens:'ser',       preteritum:'såg',     supinum:'sett'      },
+  få:        { imperativ:'få',       presens:'får',       preteritum:'fick',    supinum:'fått'      },
+  ge:        { imperativ:'ge',       presens:'ger',       preteritum:'gav',     supinum:'gett'      },
+  giva:      { imperativ:'ge',       presens:'ger',       preteritum:'gav',     supinum:'gett'      },
+  sova:      { imperativ:'sov',      presens:'sover',     preteritum:'sov',     supinum:'sovit'     },
+  be:        { imperativ:'be',       presens:'ber',       preteritum:'bad',     supinum:'bett'      },
+  bedja:     { imperativ:'be',       presens:'ber',       preteritum:'bad',     supinum:'bett'      },
+  dö:        { imperativ:'dö',       presens:'dör',       preteritum:'dog',     supinum:'dött'      },
+  le:        { imperativ:'le',       presens:'ler',       preteritum:'log',     supinum:'lett'      },
+  stå:       { imperativ:'stå',      presens:'står',      preteritum:'stod',    supinum:'stått'     },
+  ha:        { imperativ:'ha',       presens:'har',       preteritum:'hade',    supinum:'haft'      },
+  hava:      { imperativ:'ha',       presens:'har',       preteritum:'hade',    supinum:'haft'      },
+  leva:      { imperativ:'lev',      presens:'lever',     preteritum:'levde',   supinum:'levt'      },
+  ligga:     { imperativ:'ligg',     presens:'ligger',    preteritum:'låg',     supinum:'legat'     },
+  heta:      { imperativ:'heta',     presens:'heter',     preteritum:'hette',   supinum:'hetat'     },
 };
 
 const LANGUAGES = ['sv', 'en', 'es', 'ar', 'ur', 'tr', 'zh', 'th', 'ti', 'mn', 'uk'];
@@ -286,40 +372,37 @@ function gissaOrdklass_(word) {
 }
 
 function analyseraVerb_(lemma) {
-  const irregular = {
-    vara:   { verbgrupp: '4', infinitiv: 'vara',   imperativ: 'var',  presens: 'är',     preteritum: 'var',    supinum: 'varit'  },
-    gå:     { verbgrupp: '4', infinitiv: 'gå',     imperativ: 'gå',   presens: 'går',    preteritum: 'gick',   supinum: 'gått'   },
-    komma:  { verbgrupp: '4', infinitiv: 'komma',  imperativ: 'kom',  presens: 'kommer', preteritum: 'kom',    supinum: 'kommit' },
-    göra:   { verbgrupp: '4', infinitiv: 'göra',   imperativ: 'gör',  presens: 'gör',    preteritum: 'gjorde', supinum: 'gjort'  },
-    se:     { verbgrupp: '4', infinitiv: 'se',     imperativ: 'se',   presens: 'ser',    preteritum: 'såg',    supinum: 'sett'   },
-    ta:     { verbgrupp: '4', infinitiv: 'ta',     imperativ: 'ta',   presens: 'tar',    preteritum: 'tog',    supinum: 'tagit'  },
-    få:     { verbgrupp: '4', infinitiv: 'få',     imperativ: 'få',   presens: 'får',    preteritum: 'fick',   supinum: 'fått'   },
-    bli:    { verbgrupp: '4', infinitiv: 'bli',    imperativ: 'bli',  presens: 'blir',   preteritum: 'blev',   supinum: 'blivit' },
-    skriva: { verbgrupp: '4', infinitiv: 'skriva', imperativ: 'skriv', presens: 'skriver', preteritum: 'skrev', supinum: 'skrivit' }
-  };
-  if (irregular[lemma]) return irregular[lemma];
+  // 1. Direct lookup in group 4 table (by infinitiv)
+  if (GRUPP4_VERB[lemma]) {
+    return { verbgrupp: '4', infinitiv: lemma, ...GRUPP4_VERB[lemma] };
+  }
 
-  const grupp = klassificeraVerbgruppFramMall_(lemma);
+  // 2. Lookup by imperativ form (student may have entered the imperativ)
+  const byImperativ = Object.entries(GRUPP4_VERB).find(([, d]) => d.imperativ === lemma);
+  if (byImperativ) {
+    const [infinitiv, d] = byImperativ;
+    return { verbgrupp: '4', infinitiv, ...d };
+  }
 
-  if (grupp === '1' || lemma.endsWith('a')) {
-    const stem = lemma.endsWith('a') ? lemma.slice(0, -1) : lemma;
+  // 3. Rule-based fallback for groups 1–3
+  // Grupp 1: infinitiv ends in unstressed -a
+  if (lemma.endsWith('a')) {
+    const stem = lemma.slice(0, -1);
     return { verbgrupp: '1', infinitiv: lemma, imperativ: stem, presens: `${stem}ar`, preteritum: `${stem}ade`, supinum: `${stem}at` };
   }
-  if (grupp === '2a') {
-    return { verbgrupp: '2a', infinitiv: `${lemma}a`, imperativ: lemma, presens: `${lemma}er`, preteritum: `${lemma}de`, supinum: `${lemma}t` };
-  }
-  if (grupp === '2b') {
-    return { verbgrupp: '2b', infinitiv: `${lemma}a`, imperativ: lemma, presens: `${lemma}er`, preteritum: `${lemma}te`, supinum: `${lemma}t` };
-  }
-  if (grupp === '3' || lemma.length <= 4) {
+
+  // Grupp 3: imperativ ends in stressed vowel (short words like tro, bo, sy, klä, nå, må)
+  if (/[aeiouåäöyuAEIOUÅÄÖY]$/.test(lemma)) {
     return { verbgrupp: '3', infinitiv: lemma, imperativ: lemma, presens: `${lemma}r`, preteritum: `${lemma}dde`, supinum: `${lemma}tt` };
   }
 
-  return { verbgrupp: '2b (gissning)', infinitiv: lemma, imperativ: lemma, presens: `${lemma}er`, preteritum: `${lemma}de`, supinum: `${lemma}t` };
-}
+  // Grupp 2b: imperativ ends in p, t, k, s, x
+  if (/[ptksx]$/.test(lemma)) {
+    return { verbgrupp: '2b', infinitiv: `${lemma}a`, imperativ: lemma, presens: `${lemma}er`, preteritum: `${lemma}te`, supinum: `${lemma}t` };
+  }
 
-function klassificeraVerbgruppFramMall_(lemma) {
-  return VERB_GROUP_FROM_IMPERATIV[lemma] || '';
+  // Grupp 2a: imperativ ends in other consonant
+  return { verbgrupp: '2a', infinitiv: `${lemma}a`, imperativ: lemma, presens: `${lemma}er`, preteritum: `${lemma}de`, supinum: `${lemma}t` };
 }
 
 function klassificeraDeklinationFramMall_(lemma) {
@@ -481,8 +564,8 @@ ADVERBS vs ADJECTIVES:
 
 VERB GROUP RULES (based on imperativ = verb stem):
 - Grupp 1: infinitiv ends in unstressed -a. Imperativ = stem (e.g. arbeta→arbeta). Presens = stem+ar, preteritum = stem+ade, supinum = stem+at.
-- Grupp 2a: imperativ ends in VOICED consonant (b, d, g, v, l, m, n, r). Presens = stem+er, preteritum = stem+de, supinum = stem+t. (leva→lever/levde/levt, stänga→stäng/stänger/stängde/stängt)
-- Grupp 2b: imperativ ends in VOICELESS consonant (k, p, t, s, f) or cluster. Presens = stem+er, preteritum = stem+te, supinum = stem+t. (söka→sök/söker/sökte/sökt, köpa→köp/köper/köpte/köpt)
+- Grupp 2a: imperativ ends in a consonant that is NOT p, t, k, s, or x. Presens = stem+er, preteritum = stem+de, supinum = stem+t. (leva→lev/lever/levde/levt, bygga→bygg/bygger/byggde/byggt)
+- Grupp 2b: imperativ ends specifically in p, t, k, s, or x. Presens = stem+er, preteritum = stem+te, supinum = stem+t. (söka→sök/söker/sökte/sökt, köpa→köp/köper/köpte/köpt, hyra→hyr/hyr/hyrde/hyrt — note: hyr ends in r so it is 2a not 2b)
 - Grupp 3: monosyllabic stem, often ends in vowel. Presens = stem+r, preteritum = stem+dde, supinum = stem+tt. (tro→tror/trodde/trott, bo→bor/bodde/bott)
 - Grupp 4: strong/irregular — vowel changes in preteritum. (skriva→skriver/skrev/skrivit, binda→binder/band/bundit, dricka→dricker/drack/druckit)
 
