@@ -119,6 +119,10 @@ const GRUPP4_VERB = {
   föreslå:   { imperativ:'föreslå',  presens:'föreslår',  preteritum:'föreslog',supinum:'föreslagit'},
   förtiga:   { imperativ:'förtig',   presens:'förtiger',  preteritum:'förteg',  supinum:'förtigit'  },
   svärja:    { imperativ:'svärj',    presens:'svärjer',   preteritum:'svor',    supinum:'svurit'    },
+  // Mixed/irregular — vowel change but treated as grupp 4
+  sälja:     { imperativ:'sälj',    presens:'säljer',    preteritum:'sålde',   supinum:'sålt'      },
+  svälja:    { imperativ:'svälj',   presens:'sväljer',   preteritum:'svalde',  supinum:'svalt'     },
+  ställa:    { imperativ:'ställ',   presens:'ställer',   preteritum:'ställde', supinum:'ställt'    },
 };
 
 const LANGUAGES = ['sv', 'en', 'es', 'ar', 'ur', 'tr', 'zh', 'th', 'ti', 'mn', 'uk'];
