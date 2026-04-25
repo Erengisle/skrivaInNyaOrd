@@ -635,10 +635,10 @@ function bojaVerbFranImperativ_(imperativ, originalLemma, forcedGrupp) {
 
   // Group 4: look up lemma across ALL stored forms (handles preteritum/supinum submitted as lemma)
   const byAllForms = slaUppAllaVerbFormer_(lem);
-  if (byAllForms) return { verbgrupp: '4', ...byAllForms };
+  if (byAllForms) return byAllForms;
 
-  // Compound verb: strip prefix and match base in GRUPP4_VERB (any form)
-  const compound = finnSammansattGrupp4_(imp) || (lem !== imp && finnSammansattGrupp4_(lem));
+  // Compound verb: strip prefix and match base in any lookup table
+  const compound = finnSammansattVerb_(imp) || (lem !== imp && finnSammansattVerb_(lem));
   if (compound) return compound;
 
   if (!imp) return {};
@@ -670,6 +670,16 @@ function bojaVerbFranImperativ_(imperativ, originalLemma, forcedGrupp) {
     presens: imp + 'er', preteritum: imp + 'de', supinum: imp + 't' };
 }
 
+// Verbs where AI commonly drops the final consonant from the stem,
+// particularly -lj and -rj endings. Also used for compound detection.
+const VERB_UTÖKAT = {
+  följa:   { verbgrupp:'2a', imperativ:'följ',   presens:'följer',   preteritum:'följde',   supinum:'följt'   },
+  välja:   { verbgrupp:'2a', imperativ:'välj',   presens:'väljer',   preteritum:'valde',    supinum:'valt'    },
+  berätta: { verbgrupp:'1',  imperativ:'berätta',presens:'berättar', preteritum:'berättade',supinum:'berättat'},
+  börja:   { verbgrupp:'1',  imperativ:'börja',  presens:'börjar',   preteritum:'började',  supinum:'börjat'  },
+  röja:    { verbgrupp:'2a', imperativ:'röj',    presens:'röjer',    preteritum:'röjde',    supinum:'röjt'    },
+};
+
 const VERB_PREFIXES = [
   'återupp', 'åter', 'under', 'vidare', 'över', 'bort', 'fram', 'till',
   'upp', 'ned', 'ner', 'sam', 'an', 'av', 'be', 'för', 'in', 'om', 'på', 'ut',
@@ -679,8 +689,16 @@ const VERB_PREFIXES = [
 function slaUppAllaVerbFormer_(form) {
   if (!form) return null;
   const f = form.toLowerCase();
-  if (GRUPP4_VERB[f]) return { infinitiv: f, ...GRUPP4_VERB[f] };
+  // GRUPP4_VERB — always verbgrupp '4'
+  if (GRUPP4_VERB[f]) return { verbgrupp: '4', infinitiv: f, ...GRUPP4_VERB[f] };
   for (const [infinitiv, d] of Object.entries(GRUPP4_VERB)) {
+    if (d.imperativ === f || d.presens === f || d.preteritum === f || d.supinum === f) {
+      return { verbgrupp: '4', infinitiv, ...d };
+    }
+  }
+  // VERB_UTÖKAT — verbgrupp stored in each entry
+  if (VERB_UTÖKAT[f]) return { infinitiv: f, ...VERB_UTÖKAT[f] };
+  for (const [infinitiv, d] of Object.entries(VERB_UTÖKAT)) {
     if (d.imperativ === f || d.presens === f || d.preteritum === f || d.supinum === f) {
       return { infinitiv, ...d };
     }
@@ -688,7 +706,7 @@ function slaUppAllaVerbFormer_(form) {
   return null;
 }
 
-function finnSammansattGrupp4_(word) {
+function finnSammansattVerb_(word) {
   if (!word) return null;
   const w = word.toLowerCase();
   for (const prefix of VERB_PREFIXES) {
@@ -697,7 +715,7 @@ function finnSammansattGrupp4_(word) {
       const result = slaUppAllaVerbFormer_(base);
       if (result) {
         return {
-          verbgrupp: '4',
+          verbgrupp:   result.verbgrupp,
           infinitiv:   prefix + result.infinitiv,
           imperativ:   prefix + (result.imperativ || ''),
           presens:     prefix + result.presens,
@@ -724,6 +742,7 @@ IMPERATIV RULES:
 - Grupp 2b (imperativ ends in p/t/k/s/x): köpa→köp, söka→sök, läsa→läs, åka→åk
 - Grupp 3 (imperativ ends in stressed vowel): tro→tro, bo→bo, sy→sy
 - Grupp 4 (strong/irregular): skriva→skriv, springa→spring, dricka→drick, vara→var, gå→gå, komma→kom
+IMPORTANT: For verbs with stems ending in -lj or -rj, keep the j: följa→följ (NOT föl), välja→välj (NOT väl), svälja→svälj (NOT sväl), förfölja→förfölj (NOT förföl)
 
 ADVERBS vs ADJECTIVES:
 - Adverbs and particles (snabbt, fort, gärna, ofta, alltid, aldrig, inte, bara) → ordklass "övrigt"
