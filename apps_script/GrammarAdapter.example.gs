@@ -368,7 +368,7 @@ function gissaOrdklass_(word) {
   if (word.endsWith('a') || word.endsWith('era') || word.endsWith('ar')) return 'verb';
   if (word.endsWith('ning') || word.endsWith('het') || word.endsWith('else')) return 'substantiv';
   if (word.endsWith('ig') || word.endsWith('isk') || word.endsWith('ad')) return 'adjektiv';
-  return 'okänd';
+  return 'övrigt';
 }
 
 function analyseraVerb_(lemma) {
@@ -465,7 +465,7 @@ function konfigureraOrdklassDropdown() {
   }
 
   const rule = SpreadsheetApp.newDataValidation()
-    .requireValueInList(['verb', 'substantiv', 'adjektiv', 'okänd'], true)
+    .requireValueInList(['verb', 'substantiv', 'adjektiv', 'övrigt'], true)
     .setAllowInvalid(false)
     .build();
 
@@ -585,9 +585,9 @@ Reply with ONLY a valid JSON object — no explanation, no markdown, no code fen
 CRITICAL RULES — read carefully before classifying:
 
 ADVERBS vs ADJECTIVES:
-- Adverbs (e.g. snabbt, fort, gärna, ofta, alltid, aldrig, inte, bara, redan) → ordklass "okänd"
+- Adverbs (e.g. snabbt, fort, gärna, ofta, alltid, aldrig, inte, bara, redan) → ordklass "övrigt"
 - Adjectives inflect for gender/number: snabb/snabbt/snabba. If a word is only used to modify verbs or is invariant, it is an adverb, NOT an adjektiv.
-- Words ending in -t that are adverbial forms (fort, tyst, sent, tidigt) → "okänd"
+- Words ending in -t that are adverbial forms (fort, tyst, sent, tidigt) → "övrigt"
 
 VERB GROUP RULES (based on imperativ = verb stem):
 - Grupp 1: infinitiv ends in unstressed -a. Imperativ = stem (e.g. arbeta→arbeta). Presens = stem+ar, preteritum = stem+ade, supinum = stem+at.
@@ -604,7 +604,7 @@ NOUN DECLENSION:
 - Dekl 5: invariant plural (hus, barn, rum)
 
 Each key = a Swedish word. Value = object with:
-- ordklass: "verb", "substantiv", "adjektiv", or "okänd"
+- ordklass: "verb", "substantiv", "adjektiv", or "övrigt"
 - verbs: verbgrupp, infinitiv, imperativ, presens, preteritum, supinum
 - nouns: deklination
 - others: just ordklass
@@ -612,7 +612,7 @@ Each key = a Swedish word. Value = object with:
 Swedish words: ${JSON.stringify(lemmas)}
 
 Example:
-{"springa":{"ordklass":"verb","verbgrupp":"4","infinitiv":"springa","imperativ":"spring","presens":"springer","preteritum":"sprang","supinum":"sprungit"},"hus":{"ordklass":"substantiv","deklination":"5"},"snabb":{"ordklass":"adjektiv"},"fort":{"ordklass":"okänd"},"söka":{"ordklass":"verb","verbgrupp":"2b","infinitiv":"söka","imperativ":"sök","presens":"söker","preteritum":"sökte","supinum":"sökt"}}`;
+{"springa":{"ordklass":"verb","verbgrupp":"4","infinitiv":"springa","imperativ":"spring","presens":"springer","preteritum":"sprang","supinum":"sprungit"},"hus":{"ordklass":"substantiv","deklination":"5"},"snabb":{"ordklass":"adjektiv"},"fort":{"ordklass":"övrigt"},"söka":{"ordklass":"verb","verbgrupp":"2b","infinitiv":"söka","imperativ":"sök","presens":"söker","preteritum":"sökte","supinum":"sökt"}}`;
 
   const response = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
     method: 'post',
