@@ -536,8 +536,9 @@ function analyseraGrammatikMedAI() {
   const words = values.slice(1)
     .map((r, i) => ({
       rowIndex: i + 1,
-      lemma: (r[idx.lemma] || '').toString().trim(),
-      existingGrupp: idx.verbgrupp >= 0 ? (r[idx.verbgrupp] || '').toString().trim() : ''
+      lemma:           (r[idx.lemma]      || '').toString().trim(),
+      existingOrdklass: idx.ordklass  >= 0 ? (r[idx.ordklass]  || '').toString().trim() : '',
+      existingGrupp:    idx.verbgrupp >= 0 ? (r[idx.verbgrupp] || '').toString().trim() : ''
     }))
     .filter(w => w.lemma);
 
@@ -567,31 +568,46 @@ function analyseraGrammatikMedAI() {
     });
   }
 
+  const VERB_KEYS = new Set(['verbgrupp','infinitiv','imperativ','presens','preteritum','supinum']);
+
   const BATCH_SIZE = 20;
   for (let b = 0; b < words.length; b += BATCH_SIZE) {
     const batch = words.slice(b, b + BATCH_SIZE);
     const results = anropaClaudeGrammatik_(apiKey, batch.map(w => w.lemma));
 
-    batch.forEach(({ rowIndex, lemma, existingGrupp }) => {
+    batch.forEach(({ rowIndex, lemma, existingOrdklass, existingGrupp }) => {
       const analysis = results[lemma] || results[lemma.toLowerCase()] || {};
-      if (!analysis.ordklass) return;
 
-      // AI provides ordklass + imperativ only. All verb forms derived from own rules/table.
-      // existingGrupp = teacher's manually set group; it takes precedence over rule inference.
-      if (analysis.ordklass === 'verb') {
+      // Columns B (ordklass) and E (verbgrupp) are protected: never overwrite if already set.
+      const effectiveOrdklass = existingOrdklass || analysis.ordklass || '';
+      if (!effectiveOrdklass) return;
+
+      if (effectiveOrdklass === 'verb') {
         const forms = bojaVerbFranImperativ_(analysis.imperativ || '', lemma, existingGrupp || null);
         if (forms.verbgrupp) Object.assign(analysis, forms);
       }
 
-      GRAMMAR_KEYS.forEach(key => {
-        if (idx[key] >= 0) oversikt.getRange(rowIndex + 1, idx[key] + 1).setValue(analysis[key] || '');
-      });
+      const writeCell = (sheet, sheetIdx, key) => {
+        if (sheetIdx[key] < 0) return;
+        if (key === 'ordklass' && existingOrdklass) return;   // B protected
+        if (key === 'verbgrupp' && existingGrupp) return;     // E protected
+        if (effectiveOrdklass !== 'verb' && VERB_KEYS.has(key)) return; // skip verb fields for non-verbs
+        const val = key === 'ordklass' ? effectiveOrdklass : (analysis[key] || '');
+        sheet.getRange(rowIndex + 1, sheetIdx[key] + 1).setValue(val);
+      };
+
+      GRAMMAR_KEYS.forEach(key => writeCell(oversikt, idx, key));
 
       if (wordbank && wbIdx) {
         const wbRow = wbLemmaRow[lemma];
         if (wbRow !== undefined) {
           GRAMMAR_KEYS.forEach(key => {
-            if (wbIdx[key] >= 0) wordbank.getRange(wbRow + 1, wbIdx[key] + 1).setValue(analysis[key] || '');
+            if (wbIdx[key] < 0) return;
+            if (key === 'ordklass' && existingOrdklass) return;
+            if (key === 'verbgrupp' && existingGrupp) return;
+            if (effectiveOrdklass !== 'verb' && VERB_KEYS.has(key)) return;
+            const val = key === 'ordklass' ? effectiveOrdklass : (analysis[key] || '');
+            wordbank.getRange(wbRow + 1, wbIdx[key] + 1).setValue(val);
           });
         }
       }
