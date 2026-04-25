@@ -464,10 +464,7 @@ function konfigureraOrdklassDropdown() {
     return;
   }
 
-  const rule = SpreadsheetApp.newDataValidation()
-    .requireValueInList(['verb', 'substantiv', 'adjektiv', 'övrigt'], true)
-    .setAllowInvalid(false)
-    .build();
+  let totalChanged = 0;
 
   sheets.forEach(sheet => {
     const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
@@ -477,21 +474,32 @@ function konfigureraOrdklassDropdown() {
     const lastRow = sheet.getLastRow();
     if (lastRow < 2) return;
     const range = sheet.getRange(2, col + 1, lastRow - 1, 1);
-    range.setDataValidation(rule);
 
-    // Replace any existing "okänd" values with "övrigt"
+    // Step 1: clear any existing validation so it can't block writes
+    range.clearDataValidations();
+
+    // Step 2: replace "okänd" (any case/spacing) with "övrigt"
     const values = range.getValues();
-    let changed = false;
     values.forEach(row => {
       if ((row[0] || '').toString().trim().toLowerCase() === 'okänd') {
         row[0] = 'övrigt';
-        changed = true;
+        totalChanged++;
       }
     });
-    if (changed) range.setValues(values);
+    range.setValues(values);
+
+    // Step 3: apply the new dropdown validation
+    const rule = SpreadsheetApp.newDataValidation()
+      .requireValueInList(['verb', 'substantiv', 'adjektiv', 'övrigt'], true)
+      .setAllowInvalid(false)
+      .build();
+    range.setDataValidation(rule);
   });
 
-  SpreadsheetApp.getActive().toast('Ordklass-dropdown tillagd i Översikt och Ordbank.', 'Klar', 4);
+  SpreadsheetApp.getActive().toast(
+    `Dropdown tillagd. ${totalChanged} celler ändrade från "okänd" till "övrigt".`,
+    'Klar', 5
+  );
 }
 
 // ── AI-grammatikanalys ───────────────────────────────────────────────────────
