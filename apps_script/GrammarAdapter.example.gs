@@ -507,6 +507,12 @@ function analyseraGrammatikMedAI() {
 
   if (!words.length) return;
 
+  // Clear data validation on ordklass column before writing to avoid user-defined validation errors
+  const lastRow = oversikt.getLastRow();
+  if (idx.ordklass >= 0 && lastRow >= 2) {
+    oversikt.getRange(2, idx.ordklass + 1, lastRow - 1, 1).clearDataValidations();
+  }
+
   // Build Ordbank lookup so we can update grammar there too (without wiping translations)
   const wordbank = ss.getSheetByName(CONFIG.WORDBANK_SHEET);
   let wbIdx = null;
@@ -516,6 +522,9 @@ function analyseraGrammatikMedAI() {
       .map(h => h.toString().toLowerCase());
     wbIdx = {};
     for (const key of ['lemma', ...GRAMMAR_KEYS]) wbIdx[key] = wbHeaders.indexOf(key);
+    if (wbIdx.ordklass >= 0 && wordbank.getLastRow() >= 2) {
+      wordbank.getRange(2, wbIdx.ordklass + 1, wordbank.getLastRow() - 1, 1).clearDataValidations();
+    }
     wordbank.getDataRange().getValues().slice(1).forEach((r, i) => {
       const lemma = (r[wbIdx.lemma] || '').toString().trim();
       if (lemma) wbLemmaRow[lemma] = i + 1;
@@ -530,6 +539,11 @@ function analyseraGrammatikMedAI() {
     batch.forEach(({ rowIndex, lemma }) => {
       const analysis = results[lemma] || results[lemma.toLowerCase()] || {};
       if (!analysis.ordklass) return;
+
+      // Override verbgrupp using imperativ form + our own rules — more reliable than AI's guess
+      if (analysis.ordklass === 'verb' && analysis.imperativ) {
+        analysis.verbgrupp = verbgruppFranImperativ_(analysis.imperativ);
+      }
 
       GRAMMAR_KEYS.forEach(key => {
         if (idx[key] >= 0) oversikt.getRange(rowIndex + 1, idx[key] + 1).setValue(analysis[key] || '');
@@ -549,6 +563,19 @@ function analyseraGrammatikMedAI() {
   }
 
   ss.toast('Grammatikanalys klar — Översikt och Ordbank uppdaterade.', 'Klar', 5);
+}
+
+function verbgruppFranImperativ_(imperativ) {
+  const imp = imperativ.trim().toLowerCase();
+  // Check group 4 lookup by imperativ
+  for (const d of Object.values(GRUPP4_VERB)) {
+    if (d.imperativ === imp) return '4';
+  }
+  if (!imp) return '';
+  if (imp.endsWith('a')) return '1';
+  if (/[eiouåäöy]$/.test(imp)) return '3'; // stressed vowel other than -a
+  if (/[ptksx]$/.test(imp)) return '2b';
+  return '2a';
 }
 
 function anropaClaudeGrammatik_(apiKey, lemmas) {
