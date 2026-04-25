@@ -534,7 +534,11 @@ function analyseraGrammatikMedAI() {
   for (const key of ['lemma', ...GRAMMAR_KEYS]) idx[key] = headers.indexOf(key);
 
   const words = values.slice(1)
-    .map((r, i) => ({ rowIndex: i + 1, lemma: (r[idx.lemma] || '').toString().trim() }))
+    .map((r, i) => ({
+      rowIndex: i + 1,
+      lemma: (r[idx.lemma] || '').toString().trim(),
+      existingGrupp: idx.verbgrupp >= 0 ? (r[idx.verbgrupp] || '').toString().trim() : ''
+    }))
     .filter(w => w.lemma);
 
   if (!words.length) return;
@@ -568,14 +572,14 @@ function analyseraGrammatikMedAI() {
     const batch = words.slice(b, b + BATCH_SIZE);
     const results = anropaClaudeGrammatik_(apiKey, batch.map(w => w.lemma));
 
-    batch.forEach(({ rowIndex, lemma }) => {
+    batch.forEach(({ rowIndex, lemma, existingGrupp }) => {
       const analysis = results[lemma] || results[lemma.toLowerCase()] || {};
       if (!analysis.ordklass) return;
 
-      // AI is only trusted for ordklass + imperativ. All other verb forms are derived
-      // from our own rules/table — AI conjugation is too unreliable.
-      if (analysis.ordklass === 'verb' && analysis.imperativ) {
-        const forms = bojaVerbFranImperativ_(analysis.imperativ, lemma);
+      // AI provides ordklass + imperativ only. All verb forms derived from own rules/table.
+      // existingGrupp = teacher's manually set group; it takes precedence over rule inference.
+      if (analysis.ordklass === 'verb') {
+        const forms = bojaVerbFranImperativ_(analysis.imperativ || '', lemma, existingGrupp || null);
         if (forms.verbgrupp) Object.assign(analysis, forms);
       }
 
@@ -599,41 +603,91 @@ function analyseraGrammatikMedAI() {
   ss.toast('Grammatikanalys klar — Översikt och Ordbank uppdaterade.', 'Klar', 5);
 }
 
-function bojaVerbFranImperativ_(imperativ, originalLemma) {
+function bojaVerbFranImperativ_(imperativ, originalLemma, forcedGrupp) {
   const imp = (imperativ || '').trim().toLowerCase();
   const lem = (originalLemma || '').trim().toLowerCase();
 
-  // Group 4: check by imperativ
+  // Group 4: direct lookup by imperativ or lemma as infinitiv key
   for (const [infinitiv, d] of Object.entries(GRUPP4_VERB)) {
     if (d.imperativ === imp) return { verbgrupp: '4', infinitiv, ...d };
   }
-  // Group 4: check by original lemma (may be the infinitiv the student submitted)
   if (lem && GRUPP4_VERB[lem]) return { verbgrupp: '4', infinitiv: lem, ...GRUPP4_VERB[lem] };
+
+  // Group 4: look up lemma across ALL stored forms (handles preteritum/supinum submitted as lemma)
+  const byAllForms = slaUppAllaVerbFormer_(lem);
+  if (byAllForms) return { verbgrupp: '4', ...byAllForms };
+
+  // Compound verb: strip prefix and match base in GRUPP4_VERB (any form)
+  const compound = finnSammansattGrupp4_(imp) || (lem !== imp && finnSammansattGrupp4_(lem));
+  if (compound) return compound;
 
   if (!imp) return {};
 
-  // Grupp 1: imperativ ends in -a (e.g. cykla, arbeta, hoppa)
-  if (imp.endsWith('a')) {
-    const stem = imp.slice(0, -1);
-    return { verbgrupp: '1', infinitiv: imp, imperativ: imp,
+  // Determine group: respect teacher's existing value, else derive from imperativ ending
+  const grupp = forcedGrupp && ['1','2a','2b','3','4'].includes(forcedGrupp)
+    ? forcedGrupp
+    : imp.endsWith('a') ? '1'
+    : /[eiouåäöy]$/.test(imp) ? '3'
+    : /[ptksx]$/.test(imp) ? '2b'
+    : '2a';
+
+  if (grupp === '1') {
+    const imperativFull = imp.endsWith('a') ? imp : imp + 'a';
+    const stem = imperativFull.slice(0, -1);
+    return { verbgrupp: '1', infinitiv: imperativFull, imperativ: imperativFull,
       presens: stem + 'ar', preteritum: stem + 'ade', supinum: stem + 'at' };
   }
-
-  // Grupp 3: imperativ ends in stressed vowel other than -a (e.g. tro, bo, sy)
-  if (/[eiouåäöy]$/.test(imp)) {
+  if (grupp === '3') {
     return { verbgrupp: '3', infinitiv: imp, imperativ: imp,
       presens: imp + 'r', preteritum: imp + 'dde', supinum: imp + 'tt' };
   }
-
-  // Grupp 2b: imperativ ends in p, t, k, s, x (e.g. köp, sök, läs, åk)
-  if (/[ptksx]$/.test(imp)) {
+  if (grupp === '2b') {
     return { verbgrupp: '2b', infinitiv: imp + 'a', imperativ: imp,
       presens: imp + 'er', preteritum: imp + 'te', supinum: imp + 't' };
   }
-
-  // Grupp 2a: imperativ ends in other consonant (e.g. lev, bygg, stäng)
+  // 2a (default)
   return { verbgrupp: '2a', infinitiv: imp + 'a', imperativ: imp,
     presens: imp + 'er', preteritum: imp + 'de', supinum: imp + 't' };
+}
+
+const VERB_PREFIXES = [
+  'återupp', 'åter', 'under', 'vidare', 'över', 'bort', 'fram', 'till',
+  'upp', 'ned', 'ner', 'sam', 'an', 'av', 'be', 'för', 'in', 'om', 'på', 'ut',
+  'små', 'stor', 'halv', 'ny'
+].sort((a, b) => b.length - a.length);
+
+function slaUppAllaVerbFormer_(form) {
+  if (!form) return null;
+  const f = form.toLowerCase();
+  if (GRUPP4_VERB[f]) return { infinitiv: f, ...GRUPP4_VERB[f] };
+  for (const [infinitiv, d] of Object.entries(GRUPP4_VERB)) {
+    if (d.imperativ === f || d.presens === f || d.preteritum === f || d.supinum === f) {
+      return { infinitiv, ...d };
+    }
+  }
+  return null;
+}
+
+function finnSammansattGrupp4_(word) {
+  if (!word) return null;
+  const w = word.toLowerCase();
+  for (const prefix of VERB_PREFIXES) {
+    if (w.startsWith(prefix) && w.length > prefix.length + 2) {
+      const base = w.slice(prefix.length);
+      const result = slaUppAllaVerbFormer_(base);
+      if (result) {
+        return {
+          verbgrupp: '4',
+          infinitiv:   prefix + result.infinitiv,
+          imperativ:   prefix + (result.imperativ || ''),
+          presens:     prefix + result.presens,
+          preteritum:  prefix + result.preteritum,
+          supinum:     prefix + result.supinum
+        };
+      }
+    }
+  }
+  return null;
 }
 
 function anropaClaudeGrammatik_(apiKey, lemmas) {
