@@ -560,9 +560,11 @@ function analyseraGrammatikMedAI() {
       const analysis = results[lemma] || results[lemma.toLowerCase()] || {};
       if (!analysis.ordklass) return;
 
-      // Override verbgrupp using imperativ form + our own rules — more reliable than AI's guess
+      // AI is only trusted for ordklass + imperativ. All other verb forms are derived
+      // from our own rules/table — AI conjugation is too unreliable.
       if (analysis.ordklass === 'verb' && analysis.imperativ) {
-        analysis.verbgrupp = verbgruppFranImperativ_(analysis.imperativ);
+        const forms = bojaVerbFranImperativ_(analysis.imperativ, lemma);
+        if (forms.verbgrupp) Object.assign(analysis, forms);
       }
 
       GRAMMAR_KEYS.forEach(key => {
@@ -585,36 +587,61 @@ function analyseraGrammatikMedAI() {
   ss.toast('Grammatikanalys klar — Översikt och Ordbank uppdaterade.', 'Klar', 5);
 }
 
-function verbgruppFranImperativ_(imperativ) {
-  const imp = imperativ.trim().toLowerCase();
-  // Check group 4 lookup by imperativ
-  for (const d of Object.values(GRUPP4_VERB)) {
-    if (d.imperativ === imp) return '4';
+function bojaVerbFranImperativ_(imperativ, originalLemma) {
+  const imp = (imperativ || '').trim().toLowerCase();
+  const lem = (originalLemma || '').trim().toLowerCase();
+
+  // Group 4: check by imperativ
+  for (const [infinitiv, d] of Object.entries(GRUPP4_VERB)) {
+    if (d.imperativ === imp) return { verbgrupp: '4', infinitiv, ...d };
   }
-  if (!imp) return '';
-  if (imp.endsWith('a')) return '1';
-  if (/[eiouåäöy]$/.test(imp)) return '3'; // stressed vowel other than -a
-  if (/[ptksx]$/.test(imp)) return '2b';
-  return '2a';
+  // Group 4: check by original lemma (may be the infinitiv the student submitted)
+  if (lem && GRUPP4_VERB[lem]) return { verbgrupp: '4', infinitiv: lem, ...GRUPP4_VERB[lem] };
+
+  if (!imp) return {};
+
+  // Grupp 1: imperativ ends in -a (e.g. cykla, arbeta, hoppa)
+  if (imp.endsWith('a')) {
+    const stem = imp.slice(0, -1);
+    return { verbgrupp: '1', infinitiv: imp, imperativ: imp,
+      presens: stem + 'ar', preteritum: stem + 'ade', supinum: stem + 'at' };
+  }
+
+  // Grupp 3: imperativ ends in stressed vowel other than -a (e.g. tro, bo, sy)
+  if (/[eiouåäöy]$/.test(imp)) {
+    return { verbgrupp: '3', infinitiv: imp, imperativ: imp,
+      presens: imp + 'r', preteritum: imp + 'dde', supinum: imp + 'tt' };
+  }
+
+  // Grupp 2b: imperativ ends in p, t, k, s, x (e.g. köp, sök, läs, åk)
+  if (/[ptksx]$/.test(imp)) {
+    return { verbgrupp: '2b', infinitiv: imp + 'a', imperativ: imp,
+      presens: imp + 'er', preteritum: imp + 'te', supinum: imp + 't' };
+  }
+
+  // Grupp 2a: imperativ ends in other consonant (e.g. lev, bygg, stäng)
+  return { verbgrupp: '2a', infinitiv: imp + 'a', imperativ: imp,
+    presens: imp + 'er', preteritum: imp + 'de', supinum: imp + 't' };
 }
 
 function anropaClaudeGrammatik_(apiKey, lemmas) {
-  const prompt = `You are an expert in Swedish morphology. Analyze these Swedish words grammatically.
+  const prompt = `You are an expert in Swedish morphology. Analyze these Swedish words.
 Reply with ONLY a valid JSON object — no explanation, no markdown, no code fences.
 
-CRITICAL RULES — read carefully before classifying:
+YOUR ONLY JOB FOR VERBS is to provide:
+1. ordklass = "verb"
+2. imperativ = the imperative stem of the verb (this is the ONLY verb field that matters — all other forms are computed by code)
+
+IMPERATIV RULES:
+- Grupp 1 (imperativ ends in -a): cykla→cykla, arbeta→arbeta, hoppa→hoppa
+- Grupp 2a (imperativ ends in consonant NOT p/t/k/s/x): leva→lev, bygga→bygg, stänga→stäng
+- Grupp 2b (imperativ ends in p/t/k/s/x): köpa→köp, söka→sök, läsa→läs, åka→åk
+- Grupp 3 (imperativ ends in stressed vowel): tro→tro, bo→bo, sy→sy
+- Grupp 4 (strong/irregular): skriva→skriv, springa→spring, dricka→drick, vara→var, gå→gå, komma→kom
 
 ADVERBS vs ADJECTIVES:
-- Adverbs (e.g. snabbt, fort, gärna, ofta, alltid, aldrig, inte, bara, redan) → ordklass "övrigt"
-- Adjectives inflect for gender/number: snabb/snabbt/snabba. If a word is only used to modify verbs or is invariant, it is an adverb, NOT an adjektiv.
-- Words ending in -t that are adverbial forms (fort, tyst, sent, tidigt) → "övrigt"
-
-VERB GROUP RULES (based on imperativ = verb stem):
-- Grupp 1: infinitiv ends in unstressed -a. Imperativ = stem (e.g. arbeta→arbeta). Presens = stem+ar, preteritum = stem+ade, supinum = stem+at.
-- Grupp 2a: imperativ ends in a consonant that is NOT p, t, k, s, or x. Presens = stem+er, preteritum = stem+de, supinum = stem+t. (leva→lev/lever/levde/levt, bygga→bygg/bygger/byggde/byggt)
-- Grupp 2b: imperativ ends specifically in p, t, k, s, or x. Presens = stem+er, preteritum = stem+te, supinum = stem+t. (söka→sök/söker/sökte/sökt, köpa→köp/köper/köpte/köpt, hyra→hyr/hyr/hyrde/hyrt — note: hyr ends in r so it is 2a not 2b)
-- Grupp 3: monosyllabic stem, often ends in vowel. Presens = stem+r, preteritum = stem+dde, supinum = stem+tt. (tro→tror/trodde/trott, bo→bor/bodde/bott)
-- Grupp 4: strong/irregular — vowel changes in preteritum. (skriva→skriver/skrev/skrivit, binda→binder/band/bundit, dricka→dricker/drack/druckit)
+- Adverbs and particles (snabbt, fort, gärna, ofta, alltid, aldrig, inte, bara) → ordklass "övrigt"
+- Only use "adjektiv" for words that inflect for gender/number (snabb/snabbt/snabba)
 
 NOUN DECLENSION:
 - Dekl 1: en-words ending in -a, plural -or (flicka, stuga)
@@ -625,14 +652,14 @@ NOUN DECLENSION:
 
 Each key = a Swedish word. Value = object with:
 - ordklass: "verb", "substantiv", "adjektiv", or "övrigt"
-- verbs: verbgrupp, infinitiv, imperativ, presens, preteritum, supinum
+- verbs: imperativ ONLY (do not invent presens/preteritum/supinum)
 - nouns: deklination
 - others: just ordklass
 
 Swedish words: ${JSON.stringify(lemmas)}
 
 Example:
-{"springa":{"ordklass":"verb","verbgrupp":"4","infinitiv":"springa","imperativ":"spring","presens":"springer","preteritum":"sprang","supinum":"sprungit"},"hus":{"ordklass":"substantiv","deklination":"5"},"snabb":{"ordklass":"adjektiv"},"fort":{"ordklass":"övrigt"},"söka":{"ordklass":"verb","verbgrupp":"2b","infinitiv":"söka","imperativ":"sök","presens":"söker","preteritum":"sökte","supinum":"sökt"}}`;
+{"springa":{"ordklass":"verb","imperativ":"spring"},"hus":{"ordklass":"substantiv","deklination":"5"},"snabb":{"ordklass":"adjektiv"},"fort":{"ordklass":"övrigt"},"söka":{"ordklass":"verb","imperativ":"sök"},"cykla":{"ordklass":"verb","imperativ":"cykla"}}`;
 
   const response = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
     method: 'post',
