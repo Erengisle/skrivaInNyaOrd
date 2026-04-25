@@ -483,7 +483,10 @@ function konfigureraOrdklassDropdown() {
     const values = range.getValues();
     let changed = false;
     values.forEach(row => {
-      if (row[0] === 'okänd') { row[0] = 'övrigt'; changed = true; }
+      if ((row[0] || '').toString().trim().toLowerCase() === 'okänd') {
+        row[0] = 'övrigt';
+        changed = true;
+      }
     });
     if (changed) range.setValues(values);
   });
