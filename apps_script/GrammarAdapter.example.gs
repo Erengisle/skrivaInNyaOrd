@@ -94,10 +94,14 @@ function submitWords(payload) {
     return { ok: false, message: 'Inga giltiga ord hittades.' };
   }
 
+  const ordklass    = ['verb','substantiv','adjektiv','övrigt'].includes(payload.ordklass) ? payload.ordklass : '';
+  const verbgrupp   = ['1','2a','2b','3','4'].includes(payload.verbgrupp) ? payload.verbgrupp : '';
+  const deklination = ['1','2','3','4','5'].includes(payload.deklination) ? payload.deklination : '';
+
   const ss = SpreadsheetApp.getActive();
   const input = hamtaEllerSkapaBlad_(ss, CONFIG.INPUT_SHEET);
-  const rows = cleaned.map(word => [new Date(), student, word]);
-  input.getRange(input.getLastRow() + 1, 1, rows.length, 3).setValues(rows);
+  const rows = cleaned.map(word => [new Date(), student, word, ordklass, verbgrupp, deklination]);
+  input.getRange(input.getLastRow() + 1, 1, rows.length, 6).setValues(rows);
 
   return { ok: true, message: `${cleaned.length} ord sparades.` };
 }
@@ -113,18 +117,48 @@ function uppdateraOversikt() {
     return;
   }
 
-  const words = values.slice(1)
-    .map(r => (r[2] || '').toString().trim().toLowerCase())
-    .filter(arEttOrd_);
-
   const freq = {};
-  words.forEach(w => (freq[w] = (freq[w] || 0) + 1));
+  const votes = {};
+
+  for (let i = 1; i < values.length; i++) {
+    const r = values[i];
+    const word = (r[2] || '').toString().trim().toLowerCase();
+    if (!arEttOrd_(word)) continue;
+    freq[word] = (freq[word] || 0) + 1;
+    if (!votes[word]) votes[word] = { ordklass: {}, verbgrupp: {}, deklination: {} };
+    const ok = (r[3] || '').toString().trim();
+    const vg = (r[4] || '').toString().trim();
+    const dk = (r[5] || '').toString().trim();
+    if (ok) votes[word].ordklass[ok]    = (votes[word].ordklass[ok]    || 0) + 1;
+    if (vg) votes[word].verbgrupp[vg]   = (votes[word].verbgrupp[vg]   || 0) + 1;
+    if (dk) votes[word].deklination[dk] = (votes[word].deklination[dk] || 0) + 1;
+  }
+
+  const majoritet = obj => {
+    const e = Object.entries(obj || {}).sort((a, b) => b[1] - a[1]);
+    return e.length ? e[0][0] : '';
+  };
 
   const result = Object.keys(freq)
     .sort((a, b) => freq[b] - freq[a] || a.localeCompare(b, 'sv'))
     .map(word => {
-      const ordklass = gissaOrdklass_(word);
-      return { lemma: word, ordklass, frekvens: freq[word], ...analyseraOrdMedAdapter_(word, ordklass) };
+      const v = votes[word];
+      const ordklass    = majoritet(v.ordklass)    || gissaOrdklass_(word);
+      const verbgrupp   = majoritet(v.verbgrupp)   || '';
+      const deklination = majoritet(v.deklination) || '';
+      const adapter = analyseraOrdMedAdapter_(word, ordklass);
+      return {
+        lemma: word,
+        ordklass,
+        frekvens: freq[word],
+        deklination: deklination || adapter.deklination || '',
+        verbgrupp:   verbgrupp   || adapter.verbgrupp   || '',
+        infinitiv:   adapter.infinitiv  || '',
+        imperativ:   adapter.imperativ  || '',
+        presens:     adapter.presens    || '',
+        preteritum:  adapter.preteritum || '',
+        supinum:     adapter.supinum    || ''
+      };
     });
 
   skrivUtOversikt_(ss, result);
@@ -199,6 +233,26 @@ function byggOrdbankFranOversikt() {
   wordbank.autoResizeColumns(1, 10 + LANGUAGES.length);
 }
 
+function hamtaRöstdata_() {
+  const input = SpreadsheetApp.getActive().getSheetByName(CONFIG.INPUT_SHEET);
+  if (!input) return {};
+  const values = input.getDataRange().getValues();
+  const votes = {};
+  for (let i = 1; i < values.length; i++) {
+    const r = values[i];
+    const word = (r[2] || '').toString().trim().toLowerCase();
+    if (!word) continue;
+    if (!votes[word]) votes[word] = { ordklass: {}, verbgrupp: {}, deklination: {} };
+    const ok = (r[3] || '').toString().trim();
+    const vg = (r[4] || '').toString().trim();
+    const dk = (r[5] || '').toString().trim();
+    if (ok) votes[word].ordklass[ok]    = (votes[word].ordklass[ok]    || 0) + 1;
+    if (vg) votes[word].verbgrupp[vg]   = (votes[word].verbgrupp[vg]   || 0) + 1;
+    if (dk) votes[word].deklination[dk] = (votes[word].deklination[dk] || 0) + 1;
+  }
+  return votes;
+}
+
 function hamtaOrdbankData(filters) {
   const ss = SpreadsheetApp.getActive();
   const sheet = ss.getSheetByName(CONFIG.WORDBANK_SHEET) || ss.getSheetByName(CONFIG.OUTPUT_SHEET);
@@ -219,6 +273,8 @@ function hamtaOrdbankData(filters) {
   const ordklassFilter = ((filters && filters.ordklass) || '').toLowerCase();
   const q = ((filters && filters.q) || '').toLowerCase();
 
+  const allVotes = hamtaRöstdata_();
+
   return values.slice(1)
     .map(r => {
       const get = key => idx[key] >= 0 ? r[idx[key]] : '';
@@ -227,6 +283,7 @@ function hamtaOrdbankData(filters) {
         translations[lang] = langIdx[lang] >= 0 ? (r[langIdx[lang]] || '') : '';
       });
       const translation = language ? (translations[language] || '') : '';
+      const lemma = (get('lemma') || '').toString().toLowerCase();
       return {
         lemma: get('lemma'),
         ordklass: get('ordklass'),
@@ -234,7 +291,8 @@ function hamtaOrdbankData(filters) {
         deklination: get('deklination'),
         verbgrupp: get('verbgrupp'),
         translation,
-        translations
+        translations,
+        votes: allVotes[lemma] || { ordklass: {}, verbgrupp: {}, deklination: {} }
       };
     })
     .filter(row => !ordklassFilter || row.ordklass.toLowerCase() === ordklassFilter)

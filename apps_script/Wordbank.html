@@ -53,6 +53,13 @@
     }
     .modal-close:hover { background: #c7d2fe; }
     .no-translations { color: #9ca3af; font-style: italic; }
+    .votes-section { margin-top: 16px; }
+    .votes-section h3 { font-size: 0.8rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 8px; }
+    .vote-row { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; font-size: 0.85rem; }
+    .vote-label { width: 90px; color: #374151; flex-shrink: 0; }
+    .vote-bar-wrap { flex: 1; background: #e2e8f0; border-radius: 4px; height: 10px; overflow: hidden; }
+    .vote-bar { height: 100%; background: #2563eb; border-radius: 4px; transition: width 0.3s; }
+    .vote-count { width: 28px; text-align: right; color: #64748b; flex-shrink: 0; }
   </style>
 </head>
 <body>
@@ -111,6 +118,7 @@
       <h2 id="modal-word"></h2>
       <table id="modal-translations"></table>
       <p id="modal-empty" class="no-translations" style="display:none">Inga översättningar inlagda ännu.</p>
+      <div id="modal-votes"></div>
       <button class="modal-close" onclick="document.getElementById('modal').classList.remove('open')">Stäng</button>
     </div>
   </div>
@@ -166,6 +174,52 @@
       });
 
       document.getElementById('modal-empty').style.display = hasAny ? 'none' : '';
+
+      // Vote statistics
+      const votesEl = document.getElementById('modal-votes');
+      votesEl.innerHTML = '';
+      const votes = r.votes || {};
+
+      const ORDKLASS_LABELS = { verb: 'Verb', substantiv: 'Substantiv', adjektiv: 'Adjektiv', övrigt: 'Övrigt' };
+      const VERBGRUPP_LABELS = { '1': 'Grupp 1', '2a': 'Grupp 2a', '2b': 'Grupp 2b', '3': 'Grupp 3', '4': 'Grupp 4' };
+      const DEKL_LABELS = { '1': 'Dekl 1', '2': 'Dekl 2', '3': 'Dekl 3', '4': 'Dekl 4', '5': 'Dekl 5' };
+
+      function renderVoteBlock(title, tally, labels) {
+        const entries = Object.entries(tally || {}).sort((a, b) => b[1] - a[1]);
+        if (!entries.length) return;
+        const total = entries.reduce((s, [, n]) => s + n, 0);
+        const section = document.createElement('div');
+        section.className = 'votes-section';
+        const h = document.createElement('h3');
+        h.textContent = title;
+        section.appendChild(h);
+        entries.forEach(([key, count]) => {
+          const row = document.createElement('div');
+          row.className = 'vote-row';
+          const label = document.createElement('span');
+          label.className = 'vote-label';
+          label.textContent = labels[key] || key;
+          const barWrap = document.createElement('div');
+          barWrap.className = 'vote-bar-wrap';
+          const bar = document.createElement('div');
+          bar.className = 'vote-bar';
+          bar.style.width = Math.round(count / total * 100) + '%';
+          barWrap.appendChild(bar);
+          const countEl = document.createElement('span');
+          countEl.className = 'vote-count';
+          countEl.textContent = count;
+          row.appendChild(label);
+          row.appendChild(barWrap);
+          row.appendChild(countEl);
+          section.appendChild(row);
+        });
+        votesEl.appendChild(section);
+      }
+
+      renderVoteBlock('Ordklass (röster)', votes.ordklass, ORDKLASS_LABELS);
+      renderVoteBlock('Verbgrupp (röster)', votes.verbgrupp, VERBGRUPP_LABELS);
+      renderVoteBlock('Deklination (röster)', votes.deklination, DEKL_LABELS);
+
       document.getElementById('modal').classList.add('open');
     }
 
