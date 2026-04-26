@@ -65,7 +65,7 @@
 <body>
   <div class="wrap">
     <h1>Klassens ordbank</h1>
-    <p class="muted">Klicka på ett ord för att se översättningar. Filtrera ordklass, språk och sökord.</p>
+    <p class="muted">Klicka på ett ord för att se röststatistik. Filtrera ordklass och sökord.</p>
 
     <div class="card">
       <div class="filters">
@@ -74,25 +74,10 @@
           <option value="verb">Verb</option>
           <option value="substantiv">Substantiv</option>
           <option value="adjektiv">Adjektiv</option>
-          <option value="okänd">Okänd</option>
+          <option value="övrigt">Övrigt</option>
         </select>
 
-        <select id="language">
-          <option value="">— välj språk —</option>
-          <option value="sv">Svenska</option>
-          <option value="en">Engelska</option>
-          <option value="es">Spanska</option>
-          <option value="ar">Arabiska</option>
-          <option value="ur">Urdu</option>
-          <option value="tr">Turkiska</option>
-          <option value="zh">Mandarin</option>
-          <option value="th">Thai</option>
-          <option value="ti">Tigrinja</option>
-          <option value="mn">Mongoliska</option>
-          <option value="uk">Ukrainska</option>
-        </select>
-
-        <input id="q" placeholder="Sök ord eller översättning">
+        <input id="q" placeholder="Sök ord">
         <button id="reload">Uppdatera</button>
       </div>
 
@@ -101,7 +86,6 @@
         <thead>
           <tr>
             <th>Ord</th>
-            <th>Översättning</th>
             <th>Ordklass</th>
             <th>Frekvens</th>
             <th>Dekl.</th>
@@ -140,7 +124,7 @@
         const tr = document.createElement('tr');
         tr.title = 'Klicka för att se översättningar';
         tr.addEventListener('click', () => openModal(i));
-        [r.lemma, r.translation, r.ordklass, r.frekvens, r.deklination, r.verbgrupp].forEach(val => {
+        [r.lemma, r.ordklass, r.frekvens, r.deklination, r.verbgrupp].forEach(val => {
           const td = document.createElement('td');
           td.textContent = val || '';
           tr.appendChild(td);
@@ -234,7 +218,6 @@
         .withSuccessHandler(render)
         .hamtaOrdbankData({
           ordklass: document.getElementById('ordklass').value,
-          language: document.getElementById('language').value,
           q: document.getElementById('q').value.trim()
         });
     }
