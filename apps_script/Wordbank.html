@@ -9,12 +9,12 @@
     body { font-family: system-ui, sans-serif; margin: 0; background: #f8fafc; }
     .wrap { max-width: 980px; margin: 0 auto; padding: 20px; }
     .card { background: white; border-radius: 12px; padding: 16px; box-shadow: 0 6px 24px rgba(0,0,0,0.06); }
-    .filters { display: grid; grid-template-columns: 1fr 2fr auto; gap: 8px; margin-bottom: 12px; }
+    .filters { display: grid; grid-template-columns: 1fr 1fr 2fr auto; gap: 8px; margin-bottom: 12px; }
     input, select, button { padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 14px; }
     button { background: #2563eb; color: #fff; border: none; font-weight: 700; cursor: pointer; }
     table { width: 100%; border-collapse: collapse; }
     th, td { text-align: left; padding: 8px; border-bottom: 1px solid #e2e8f0; }
-    th { background: #f1f5f9; position: sticky; top: 0; z-index: 1; }
+    th { background: #f1f5f9; }
     tbody tr { cursor: pointer; }
     tbody tr:hover { background: #f0f4ff; }
     .muted { color: #64748b; font-size: 13px; }
@@ -53,6 +53,13 @@
     }
     .modal-close:hover { background: #c7d2fe; }
     .no-translations { color: #9ca3af; font-style: italic; }
+    .votes-section { margin-top: 16px; }
+    .votes-section h3 { font-size: 0.8rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 8px; }
+    .vote-row { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; font-size: 0.85rem; }
+    .vote-label { width: 90px; color: #374151; flex-shrink: 0; }
+    .vote-bar-wrap { flex: 1; background: #e2e8f0; border-radius: 4px; height: 10px; overflow: hidden; }
+    .vote-bar { height: 100%; background: #2563eb; border-radius: 4px; transition: width 0.3s; }
+    .vote-count { width: 28px; text-align: right; color: #64748b; flex-shrink: 0; }
   </style>
 </head>
 <body>
@@ -67,10 +74,25 @@
           <option value="verb">Verb</option>
           <option value="substantiv">Substantiv</option>
           <option value="adjektiv">Adjektiv</option>
-          <option value="övrigt">Övrigt</option>
+          <option value="okänd">Okänd</option>
         </select>
 
-        <input id="q" placeholder="Sök ord">
+        <select id="language">
+          <option value="">— välj språk —</option>
+          <option value="sv">Svenska</option>
+          <option value="en">Engelska</option>
+          <option value="es">Spanska</option>
+          <option value="ar">Arabiska</option>
+          <option value="ur">Urdu</option>
+          <option value="tr">Turkiska</option>
+          <option value="zh">Mandarin</option>
+          <option value="th">Thai</option>
+          <option value="ti">Tigrinja</option>
+          <option value="mn">Mongoliska</option>
+          <option value="uk">Ukrainska</option>
+        </select>
+
+        <input id="q" placeholder="Sök ord eller översättning">
         <button id="reload">Uppdatera</button>
       </div>
 
@@ -79,9 +101,10 @@
         <thead>
           <tr>
             <th>Ord</th>
+            <th>Översättning</th>
             <th>Ordklass</th>
             <th>Frekvens</th>
-            <th>Deklination (subst)</th>
+            <th>Dekl.</th>
             <th>Verbgrupp</th>
           </tr>
         </thead>
@@ -95,6 +118,7 @@
       <h2 id="modal-word"></h2>
       <table id="modal-translations"></table>
       <p id="modal-empty" class="no-translations" style="display:none">Inga översättningar inlagda ännu.</p>
+      <div id="modal-votes"></div>
       <button class="modal-close" onclick="document.getElementById('modal').classList.remove('open')">Stäng</button>
     </div>
   </div>
@@ -116,7 +140,7 @@
         const tr = document.createElement('tr');
         tr.title = 'Klicka för att se översättningar';
         tr.addEventListener('click', () => openModal(i));
-        [r.lemma, r.ordklass, r.frekvens, r.deklination, r.verbgrupp].forEach(val => {
+        [r.lemma, r.translation, r.ordklass, r.frekvens, r.deklination, r.verbgrupp].forEach(val => {
           const td = document.createElement('td');
           td.textContent = val || '';
           tr.appendChild(td);
@@ -150,6 +174,52 @@
       });
 
       document.getElementById('modal-empty').style.display = hasAny ? 'none' : '';
+
+      // Vote statistics
+      const votesEl = document.getElementById('modal-votes');
+      votesEl.innerHTML = '';
+      const votes = r.votes || {};
+
+      const ORDKLASS_LABELS = { verb: 'Verb', substantiv: 'Substantiv', adjektiv: 'Adjektiv', övrigt: 'Övrigt' };
+      const VERBGRUPP_LABELS = { '1': 'Grupp 1', '2a': 'Grupp 2a', '2b': 'Grupp 2b', '3': 'Grupp 3', '4': 'Grupp 4' };
+      const DEKL_LABELS = { '1': 'Dekl 1', '2': 'Dekl 2', '3': 'Dekl 3', '4': 'Dekl 4', '5': 'Dekl 5' };
+
+      function renderVoteBlock(title, tally, labels) {
+        const entries = Object.entries(tally || {}).sort((a, b) => b[1] - a[1]);
+        if (!entries.length) return;
+        const total = entries.reduce((s, [, n]) => s + n, 0);
+        const section = document.createElement('div');
+        section.className = 'votes-section';
+        const h = document.createElement('h3');
+        h.textContent = title;
+        section.appendChild(h);
+        entries.forEach(([key, count]) => {
+          const row = document.createElement('div');
+          row.className = 'vote-row';
+          const label = document.createElement('span');
+          label.className = 'vote-label';
+          label.textContent = labels[key] || key;
+          const barWrap = document.createElement('div');
+          barWrap.className = 'vote-bar-wrap';
+          const bar = document.createElement('div');
+          bar.className = 'vote-bar';
+          bar.style.width = Math.round(count / total * 100) + '%';
+          barWrap.appendChild(bar);
+          const countEl = document.createElement('span');
+          countEl.className = 'vote-count';
+          countEl.textContent = count;
+          row.appendChild(label);
+          row.appendChild(barWrap);
+          row.appendChild(countEl);
+          section.appendChild(row);
+        });
+        votesEl.appendChild(section);
+      }
+
+      renderVoteBlock('Ordklass (röster)', votes.ordklass, ORDKLASS_LABELS);
+      renderVoteBlock('Verbgrupp (röster)', votes.verbgrupp, VERBGRUPP_LABELS);
+      renderVoteBlock('Deklination (röster)', votes.deklination, DEKL_LABELS);
+
       document.getElementById('modal').classList.add('open');
     }
 
@@ -164,7 +234,7 @@
         .withSuccessHandler(render)
         .hamtaOrdbankData({
           ordklass: document.getElementById('ordklass').value,
-          language: '',
+          language: document.getElementById('language').value,
           q: document.getElementById('q').value.trim()
         });
     }

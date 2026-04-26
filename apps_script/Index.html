@@ -46,15 +46,6 @@
       outline: none;
       border-color: #2563eb;
     }
-    .hint-box {
-      background: #f1f5f9;
-      border-radius: 8px;
-      padding: 8px 12px;
-      margin-top: 6px;
-      font-size: 0.8rem;
-      color: #64748b;
-      line-height: 1.5;
-    }
     .hidden { display: none; }
     button {
       width: 100%;
@@ -103,24 +94,23 @@
       <label for="verbgrupp">Verbgrupp</label>
       <select id="verbgrupp">
         <option value="">Välj grupp…</option>
-        <option value="1">Grupp 1 — cyklar / cyklade / cyklat</option>
-        <option value="2a">Grupp 2a — lever / levde / levt</option>
-        <option value="2b">Grupp 2b — söker / sökte / sökt</option>
-        <option value="3">Grupp 3 — tror / trodde / trott</option>
-        <option value="4">Grupp 4 — skriver / skrev / skrivit</option>
+        <option value="1">Grupp 1</option>
+        <option value="2a">Grupp 2a</option>
+        <option value="2b">Grupp 2b</option>
+        <option value="3">Grupp 3</option>
+        <option value="4">Grupp 4</option>
       </select>
-      <div class="hint-box" id="grupp-hint"></div>
     </div>
 
     <div id="deklination-wrap" class="hidden">
       <label for="deklination">Deklination</label>
       <select id="deklination">
         <option value="">Välj deklination…</option>
-        <option value="1">Dekl 1 — flicka / flickor</option>
-        <option value="2">Dekl 2 — bil / bilar</option>
-        <option value="3">Dekl 3 — tid / tider</option>
-        <option value="4">Dekl 4 — äpple / äpplen</option>
-        <option value="5">Dekl 5 — hus / hus (oförändrat)</option>
+        <option value="1">Dekl 1</option>
+        <option value="2">Dekl 2</option>
+        <option value="3">Dekl 3</option>
+        <option value="4">Dekl 4</option>
+        <option value="5">Dekl 5</option>
       </select>
     </div>
 
@@ -129,20 +119,11 @@
   </div>
 
   <script>
-    const GRUPP_HINTS = {
-      '1':  'Imperativ slutar på -a. Presens: +ar, preteritum: +ade, supinum: +at. (Att cykla → cykla! / cyklar / cyklade / cyklat)',
-      '2a': 'Imperativ slutar på konsonant (ej p/t/k/s/x). Presens: +er, preteritum: +de, supinum: +t. (Att leva → lev! / lever / levde / levt)',
-      '2b': 'Imperativ slutar på p, t, k, s eller x. Presens: +er, preteritum: +te, supinum: +t. (Att söka → sök! / söker / sökte / sökt)',
-      '3':  'Imperativ slutar på betonad vokal (ej -a). Presens: +r, preteritum: +dde, supinum: +tt. (Att tro → tro! / tror / trodde / trott)',
-      '4':  'Starka verb med vokalväxling. (Att skriva → skriv! / skriver / skrev / skrivit)'
-    };
-
     const ordklassEl     = document.getElementById('ordklass');
     const verbGruppWrap  = document.getElementById('verbgrupp-wrap');
     const deklWrap       = document.getElementById('deklination-wrap');
     const verbGruppEl    = document.getElementById('verbgrupp');
     const deklEl         = document.getElementById('deklination');
-    const gruppHint      = document.getElementById('grupp-hint');
 
     ordklassEl.addEventListener('change', () => {
       const v = ordklassEl.value;
@@ -150,11 +131,6 @@
       deklWrap.classList.toggle('hidden', v !== 'substantiv');
       verbGruppEl.value = '';
       deklEl.value = '';
-      gruppHint.textContent = '';
-    });
-
-    verbGruppEl.addEventListener('change', () => {
-      gruppHint.textContent = GRUPP_HINTS[verbGruppEl.value] || '';
     });
 
     // Persist name across sessions
@@ -176,7 +152,6 @@
       const ordklass = ordklassEl.value;
       const verbgrupp   = verbGruppEl.value;
       const deklination = deklEl.value;
-      const status   = document.getElementById('status');
       const btn      = document.getElementById('send-btn');
 
       if (!student)  { setStatus('Skriv ditt namn.', false); return; }
@@ -197,7 +172,6 @@
             deklEl.value = '';
             verbGruppWrap.classList.add('hidden');
             deklWrap.classList.add('hidden');
-            gruppHint.textContent = '';
             document.getElementById('word').focus();
           }
         })
