@@ -583,11 +583,17 @@ function analyseraGrammatikMedAI() {
       const analysis = results[lemma] || results[lemma.toLowerCase()] || {};
 
       // Columns B (ordklass) and E (verbgrupp) are protected: never overwrite if already set.
-      const effectiveOrdklass = existingOrdklass || analysis.ordklass || '';
+      // If verbgrupp is set but ordklass is empty, the word is definitely a verb.
+      const effectiveOrdklass = existingOrdklass ||
+        (existingGrupp ? 'verb' : '') ||
+        analysis.ordklass || '';
       if (!effectiveOrdklass) return;
 
       if (effectiveOrdklass === 'verb') {
-        const forms = bojaVerbFranImperativ_(analysis.imperativ || '', lemma, existingGrupp || null);
+        // Use lemma as fallback imperativ if AI didn't return one,
+        // so grupp 1 verbs like "korsa" still get correct forms derived.
+        const imperativ = (analysis.imperativ || '').trim() || lemma;
+        const forms = bojaVerbFranImperativ_(imperativ, lemma, existingGrupp || null);
         if (forms.verbgrupp) Object.assign(analysis, forms);
       }
 
@@ -675,9 +681,13 @@ function bojaVerbFranImperativ_(imperativ, originalLemma, forcedGrupp) {
 const VERB_UTÖKAT = {
   följa:   { verbgrupp:'2a', imperativ:'följ',   presens:'följer',   preteritum:'följde',   supinum:'följt'   },
   välja:   { verbgrupp:'2a', imperativ:'välj',   presens:'väljer',   preteritum:'valde',    supinum:'valt'    },
-  berätta: { verbgrupp:'1',  imperativ:'berätta',presens:'berättar', preteritum:'berättade',supinum:'berättat'},
-  börja:   { verbgrupp:'1',  imperativ:'börja',  presens:'börjar',   preteritum:'började',  supinum:'börjat'  },
   röja:    { verbgrupp:'2a', imperativ:'röj',    presens:'röjer',    preteritum:'röjde',    supinum:'röjt'    },
+  // Verbs where presens = imperativ (no -er/-ar suffix)
+  röra:    { verbgrupp:'2a', imperativ:'rör',    presens:'rör',      preteritum:'rörde',    supinum:'rört'    },
+  höra:    { verbgrupp:'2a', imperativ:'hör',    presens:'hör',      preteritum:'hörde',    supinum:'hört'    },
+  köra:    { verbgrupp:'2a', imperativ:'kör',    presens:'kör',      preteritum:'körde',    supinum:'kört'    },
+  föra:    { verbgrupp:'2a', imperativ:'för',    presens:'för',      preteritum:'förde',    supinum:'fört'    },
+  störa:   { verbgrupp:'2a', imperativ:'stör',   presens:'stör',     preteritum:'störde',   supinum:'stört'   },
 };
 
 const VERB_PREFIXES = [
