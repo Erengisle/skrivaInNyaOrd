@@ -6,6 +6,7 @@
   <base target="_top">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✏️</text></svg>">
   <style>
+    * { box-sizing: border-box; }
     body {
       font-family: system-ui, sans-serif;
       background: #f3f6ff;
@@ -13,34 +14,48 @@
       place-items: center;
       min-height: 100vh;
       margin: 0;
+      padding: 16px;
     }
-
     .card {
       background: white;
       padding: 24px;
       border-radius: 16px;
-      width: min(520px, 92vw);
+      width: min(520px, 100%);
       box-shadow: 0 10px 30px rgba(0,0,0,0.08);
     }
-
-    h1 { margin-top: 0; }
-
-    input, textarea {
+    h1 { margin-top: 0; font-size: 1.4rem; }
+    label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #475569;
+      margin: 14px 0 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    input, select {
       width: 100%;
-      padding: 10px;
-      margin: 8px 0;
+      padding: 10px 12px;
       border-radius: 10px;
-      border: 1px solid #cbd5e1;
+      border: 1.5px solid #cbd5e1;
       font-size: 1rem;
-      box-sizing: border-box;
+      background: white;
+      transition: border-color 0.15s;
     }
-
-    textarea {
-      min-height: 120px;
-      font-family: Georgia, 'Times New Roman', serif;
-      font-size: 1.05rem;
+    input:focus, select:focus {
+      outline: none;
+      border-color: #2563eb;
     }
-
+    .hint-box {
+      background: #f1f5f9;
+      border-radius: 8px;
+      padding: 8px 12px;
+      margin-top: 6px;
+      font-size: 0.8rem;
+      color: #64748b;
+      line-height: 1.5;
+    }
+    .hidden { display: none; }
     button {
       width: 100%;
       padding: 12px;
@@ -49,62 +64,154 @@
       background: #2563eb;
       color: white;
       font-weight: 700;
+      font-size: 1rem;
       cursor: pointer;
+      margin-top: 20px;
     }
-
     button:hover { background: #1d4ed8; }
-
+    button:disabled { background: #94a3b8; cursor: default; }
     #status {
       margin-top: 10px;
       font-weight: 600;
       text-align: center;
+      min-height: 1.4em;
     }
-
-    .hint {
-      font-size: 0.9rem;
-      color: #6b7280;
-    }
+    .ok { color: #16a34a; }
+    .err { color: #dc2626; }
   </style>
 </head>
-
 <body>
   <div class="card">
     <h1>Svåra ord</h1>
-    <input id="student" placeholder="Ditt namn">
-    <textarea id="words" placeholder="Skriv flera ord separerade med mellanslag eller kommatecken"></textarea>
-    <button onclick="save()">Skicka ord</button>
+
+    <label for="student">Ditt namn</label>
+    <input id="student" placeholder="Förnamn" autocomplete="given-name">
+
+    <label for="word">Ord</label>
+    <input id="word" placeholder="Skriv ett ord" autocomplete="off" autocorrect="off" spellcheck="false">
+
+    <label for="ordklass">Ordklass</label>
+    <select id="ordklass">
+      <option value="">Välj ordklass…</option>
+      <option value="verb">Verb</option>
+      <option value="substantiv">Substantiv</option>
+      <option value="adjektiv">Adjektiv</option>
+      <option value="övrigt">Övrigt</option>
+    </select>
+
+    <div id="verbgrupp-wrap" class="hidden">
+      <label for="verbgrupp">Verbgrupp</label>
+      <select id="verbgrupp">
+        <option value="">Välj grupp…</option>
+        <option value="1">Grupp 1 — cyklar / cyklade / cyklat</option>
+        <option value="2a">Grupp 2a — lever / levde / levt</option>
+        <option value="2b">Grupp 2b — söker / sökte / sökt</option>
+        <option value="3">Grupp 3 — tror / trodde / trott</option>
+        <option value="4">Grupp 4 — skriver / skrev / skrivit</option>
+      </select>
+      <div class="hint-box" id="grupp-hint"></div>
+    </div>
+
+    <div id="deklination-wrap" class="hidden">
+      <label for="deklination">Deklination</label>
+      <select id="deklination">
+        <option value="">Välj deklination…</option>
+        <option value="1">Dekl 1 — flicka / flickor</option>
+        <option value="2">Dekl 2 — bil / bilar</option>
+        <option value="3">Dekl 3 — tid / tider</option>
+        <option value="4">Dekl 4 — äpple / äpplen</option>
+        <option value="5">Dekl 5 — hus / hus (oförändrat)</option>
+      </select>
+    </div>
+
+    <button id="send-btn" onclick="save()">Skicka</button>
     <div id="status"></div>
-    <p class="hint">Du kan skriva flera ord och skicka alla samtidigt.</p>
   </div>
 
   <script>
-    function tokenize(text) {
-      return text
-        .toLowerCase()
-        .replace(/[.,;:!?]/g, ' ')
-        .split(/\s+/)
-        .filter(Boolean);
-    }
+    const GRUPP_HINTS = {
+      '1':  'Imperativ slutar på -a. Presens: +ar, preteritum: +ade, supinum: +at. (Att cykla → cykla! / cyklar / cyklade / cyklat)',
+      '2a': 'Imperativ slutar på konsonant (ej p/t/k/s/x). Presens: +er, preteritum: +de, supinum: +t. (Att leva → lev! / lever / levde / levt)',
+      '2b': 'Imperativ slutar på p, t, k, s eller x. Presens: +er, preteritum: +te, supinum: +t. (Att söka → sök! / söker / sökte / sökt)',
+      '3':  'Imperativ slutar på betonad vokal (ej -a). Presens: +r, preteritum: +dde, supinum: +tt. (Att tro → tro! / tror / trodde / trott)',
+      '4':  'Starka verb med vokalväxling. (Att skriva → skriv! / skriver / skrev / skrivit)'
+    };
+
+    const ordklassEl     = document.getElementById('ordklass');
+    const verbGruppWrap  = document.getElementById('verbgrupp-wrap');
+    const deklWrap       = document.getElementById('deklination-wrap');
+    const verbGruppEl    = document.getElementById('verbgrupp');
+    const deklEl         = document.getElementById('deklination');
+    const gruppHint      = document.getElementById('grupp-hint');
+
+    ordklassEl.addEventListener('change', () => {
+      const v = ordklassEl.value;
+      verbGruppWrap.classList.toggle('hidden', v !== 'verb');
+      deklWrap.classList.toggle('hidden', v !== 'substantiv');
+      verbGruppEl.value = '';
+      deklEl.value = '';
+      gruppHint.textContent = '';
+    });
+
+    verbGruppEl.addEventListener('change', () => {
+      gruppHint.textContent = GRUPP_HINTS[verbGruppEl.value] || '';
+    });
+
+    // Persist name across sessions
+    const studentEl = document.getElementById('student');
+    const saved = localStorage.getItem('studentName');
+    if (saved) studentEl.value = saved;
+    studentEl.addEventListener('blur', () => {
+      localStorage.setItem('studentName', studentEl.value.trim());
+    });
+
+    // Submit on Enter in word field
+    document.getElementById('word').addEventListener('keydown', e => {
+      if (e.key === 'Enter') save();
+    });
 
     function save() {
-      const student = document.getElementById('student').value.trim();
-      const words = tokenize(document.getElementById('words').value);
-      const status = document.getElementById('status');
+      const student  = studentEl.value.trim();
+      const word     = document.getElementById('word').value.trim().toLowerCase();
+      const ordklass = ordklassEl.value;
+      const verbgrupp   = verbGruppEl.value;
+      const deklination = deklEl.value;
+      const status   = document.getElementById('status');
+      const btn      = document.getElementById('send-btn');
 
-      if (!student) { status.textContent = 'Skriv ditt namn'; return; }
-      if (!words.length) { status.textContent = 'Skriv minst ett ord'; return; }
+      if (!student)  { setStatus('Skriv ditt namn.', false); return; }
+      if (!word)     { setStatus('Skriv ett ord.', false); return; }
+      if (!ordklass) { setStatus('Välj ordklass.', false); return; }
 
-      status.textContent = 'Sparar...';
+      btn.disabled = true;
+      setStatus('Sparar…', null);
 
       google.script.run
         .withSuccessHandler(res => {
-          status.textContent = res.message;
-          if (res.ok) document.getElementById('words').value = '';
+          btn.disabled = false;
+          setStatus(res.message, res.ok);
+          if (res.ok) {
+            document.getElementById('word').value = '';
+            ordklassEl.value = '';
+            verbGruppEl.value = '';
+            deklEl.value = '';
+            verbGruppWrap.classList.add('hidden');
+            deklWrap.classList.add('hidden');
+            gruppHint.textContent = '';
+            document.getElementById('word').focus();
+          }
         })
         .withFailureHandler(err => {
-          status.textContent = 'Fel: ' + err.message;
+          btn.disabled = false;
+          setStatus('Fel: ' + err.message, false);
         })
-        .submitWords({ student, words });
+        .submitWords({ student, words: [word], ordklass, verbgrupp, deklination });
+    }
+
+    function setStatus(msg, ok) {
+      const el = document.getElementById('status');
+      el.textContent = msg;
+      el.className = ok === true ? 'ok' : ok === false ? 'err' : '';
     }
   </script>
 </body>

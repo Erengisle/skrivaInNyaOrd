@@ -196,10 +196,17 @@ function submitWords(payload) {
     return { ok: false, message: 'Inga giltiga ord hittades.' };
   }
 
+  const ordklass    = ['verb','substantiv','adjektiv','övrigt'].includes(payload.ordklass)
+    ? payload.ordklass : '';
+  const verbgrupp   = ['1','2a','2b','3','4'].includes(payload.verbgrupp)
+    ? payload.verbgrupp : '';
+  const deklination = ['1','2','3','4','5'].includes(payload.deklination)
+    ? payload.deklination : '';
+
   const ss = SpreadsheetApp.getActive();
   const input = hamtaEllerSkapaBlad_(ss, CONFIG.INPUT_SHEET);
-  const rows = cleaned.map(word => [new Date(), student, word]);
-  input.getRange(input.getLastRow() + 1, 1, rows.length, 3).setValues(rows);
+  const rows = cleaned.map(word => [new Date(), student, word, ordklass, verbgrupp, deklination]);
+  input.getRange(input.getLastRow() + 1, 1, rows.length, 6).setValues(rows);
 
   return { ok: true, message: `${cleaned.length} ord sparades.` };
 }
@@ -210,23 +217,50 @@ function uppdateraOversikt() {
   if (!input) throw new Error(`Hittar inte bladet "${CONFIG.INPUT_SHEET}".`);
 
   const values = input.getDataRange().getValues();
-  if (values.length < 2) {
-    skrivUtOversikt_(ss, []);
-    return;
-  }
-
-  const words = values.slice(1)
-    .map(r => (r[2] || '').toString().trim().toLowerCase())
-    .filter(arEttOrd_);
+  if (values.length < 2) { skrivUtOversikt_(ss, []); return; }
 
   const freq = {};
-  words.forEach(w => (freq[w] = (freq[w] || 0) + 1));
+  const votes = {}; // { word: { ordklass:{}, verbgrupp:{}, deklination:{} } }
+
+  for (let i = 1; i < values.length; i++) {
+    const r = values[i];
+    const word = (r[2] || '').toString().trim().toLowerCase();
+    if (!arEttOrd_(word)) continue;
+    freq[word] = (freq[word] || 0) + 1;
+    if (!votes[word]) votes[word] = { ordklass: {}, verbgrupp: {}, deklination: {} };
+    const ok = (r[3] || '').toString().trim();
+    const vg = (r[4] || '').toString().trim();
+    const dk = (r[5] || '').toString().trim();
+    if (ok) votes[word].ordklass[ok]       = (votes[word].ordklass[ok]       || 0) + 1;
+    if (vg) votes[word].verbgrupp[vg]      = (votes[word].verbgrupp[vg]      || 0) + 1;
+    if (dk) votes[word].deklination[dk]    = (votes[word].deklination[dk]    || 0) + 1;
+  }
+
+  const majoritet = obj => {
+    const e = Object.entries(obj || {}).sort((a, b) => b[1] - a[1]);
+    return e.length ? e[0][0] : '';
+  };
 
   const result = Object.keys(freq)
     .sort((a, b) => freq[b] - freq[a] || a.localeCompare(b, 'sv'))
     .map(word => {
-      const ordklass = gissaOrdklass_(word);
-      return { lemma: word, ordklass, frekvens: freq[word], ...analyseraOrdMedAdapter_(word, ordklass) };
+      const v = votes[word];
+      const ordklass    = majoritet(v.ordklass)    || gissaOrdklass_(word);
+      const verbgrupp   = majoritet(v.verbgrupp)   || '';
+      const deklination = majoritet(v.deklination) || '';
+      const adapter = analyseraOrdMedAdapter_(word, ordklass);
+      return {
+        lemma: word,
+        ordklass,
+        frekvens: freq[word],
+        deklination: deklination || adapter.deklination || '',
+        verbgrupp:   verbgrupp   || adapter.verbgrupp   || '',
+        infinitiv:   adapter.infinitiv  || '',
+        imperativ:   adapter.imperativ  || '',
+        presens:     adapter.presens    || '',
+        preteritum:  adapter.preteritum || '',
+        supinum:     adapter.supinum    || ''
+      };
     });
 
   skrivUtOversikt_(ss, result);
