@@ -476,6 +476,17 @@ const GRUPP4_VERB = {
   sälja:     { imperativ:'sälj',     presens:'säljer',    preteritum:'sålde',   supinum:'sålt'      },
   svälja:    { imperativ:'svälj',    presens:'sväljer',   preteritum:'svalde',  supinum:'svalt'     },
   ställa:    { imperativ:'ställ',    presens:'ställer',   preteritum:'ställde', supinum:'ställt'    },
+  // Common irregulars missing from earlier versions
+  stå:       { imperativ:'stå',      presens:'står',      preteritum:'stod',    supinum:'stått'     },
+  förstå:    { imperativ:'förstå',   presens:'förstår',   preteritum:'förstod', supinum:'förstått'  },
+  bestå:     { imperativ:'bestå',    presens:'består',    preteritum:'bestod',  supinum:'bestått'   },
+  uppstå:    { imperativ:'uppstå',   presens:'uppstår',   preteritum:'uppstod', supinum:'uppstått'  },
+  ge:        { imperativ:'ge',       presens:'ger',       preteritum:'gav',     supinum:'gett'      },
+  giva:      { imperativ:'ge',       presens:'ger',       preteritum:'gav',     supinum:'gett'      },
+  sätta:     { imperativ:'sätt',     presens:'sätter',    preteritum:'satte',   supinum:'satt'      },
+  lägga:     { imperativ:'lägg',     presens:'lägger',    preteritum:'lade',    supinum:'lagt'      },
+  ligga:     { imperativ:'ligg',     presens:'ligger',    preteritum:'låg',     supinum:'legat'     },
+  sova:      { imperativ:'sov',      presens:'sover',     preteritum:'sov',     supinum:'sovit'     },
 };
 
 // Verbs AI commonly conjugates wrong (e.g. drops -j from -lj/-rj stems).
@@ -554,6 +565,15 @@ function bojaVerbFranImperativ_(imperativ, originalLemma, forcedGrupp) {
 
   if (!imp) return {};
 
+  // When teacher has confirmed group 1, recover the correct imperativ (= infinitiv for -a verbs).
+  // AI often returns just the stem (e.g. "halt" for "halta"); undo that here.
+  if (forcedGrupp === '1') {
+    const g1imp = lem.endsWith('a') ? lem : (imp.endsWith('a') ? imp : imp + 'a');
+    const stem = g1imp.slice(0, -1);
+    return { verbgrupp: '1', infinitiv: g1imp, imperativ: g1imp,
+      presens: stem + 'ar', preteritum: stem + 'ade', supinum: stem + 'at' };
+  }
+
   // Imperativ ending in -a is ALWAYS group 1, even if column E says otherwise
   if (imp.endsWith('a')) {
     const stem = imp.slice(0, -1);
@@ -575,6 +595,12 @@ function bojaVerbFranImperativ_(imperativ, originalLemma, forcedGrupp) {
   if (grupp === '2b') {
     return { verbgrupp: '2b', infinitiv: imp + 'a', imperativ: imp,
       presens: imp + 'er', preteritum: imp + 'te', supinum: imp + 't' };
+  }
+  // Group 2a: stems ending in -nd simplify double consonant (vänd+de→vände, vänd+t→vänt)
+  if (imp.endsWith('nd')) {
+    const base = imp.slice(0, -1);
+    return { verbgrupp: '2a', infinitiv: imp + 'a', imperativ: imp,
+      presens: imp + 'er', preteritum: base + 'de', supinum: base + 't' };
   }
   return { verbgrupp: '2a', infinitiv: imp + 'a', imperativ: imp,
     presens: imp + 'er', preteritum: imp + 'de', supinum: imp + 't' };
@@ -624,7 +650,14 @@ function analyseraGrammatikMedAI() {
   const BATCH_SIZE = 20;
   for (let b = 0; b < words.length; b += BATCH_SIZE) {
     const batch = words.slice(b, b + BATCH_SIZE);
-    const results = anropaClaudeGrammatik_(apiKey, batch.map(w => w.lemma));
+    let results;
+    try {
+      results = anropaClaudeGrammatik_(apiKey, batch.map(w => w.lemma));
+    } catch (e) {
+      Logger.log('API-fel för batch ' + b + ': ' + e.message);
+      ss.toast('API-fel: ' + e.message, 'Fel', 8);
+      break;
+    }
 
     batch.forEach(({ rowIndex, lemma, existingOrdklass, existingGrupp }) => {
       const analysis = results[lemma] || results[lemma.toLowerCase()] || {};
@@ -680,7 +713,7 @@ Reply with ONLY a valid JSON object — no explanation, no markdown.
 
 Each key is a word from the list. The value is an object with:
 - "ordklass": "verb", "substantiv", "adjektiv", or "övrigt"
-- For verbs: "imperativ" only (the command form, e.g. "spring", "cykla", "sälj"). Keep -j in stems like följ, välj, sälj.
+- For verbs: "imperativ" only (the command form). Rules: (1) group-1 verbs whose infinitive ends in -a have imperativ = full infinitive (e.g. "cykla"→"cykla", "halta"→"halta", "snegla"→"snegla"). (2) group-2/3/4 verbs use the bare stem (e.g. "spring", "sälj", "kör"). Keep -j in -lj/-rj stems: följ, välj, sälj.
 - For nouns: "deklination" ("1","2","3","4","5")
 - For others: just ordklass
 
