@@ -374,7 +374,7 @@ function normaliseraOrdLista_(wordsInput) {
 }
 
 function arGiltigtFornamn_(value) {
-  return /^[A-Za-zÅÄÖåäöÉéÜü-]{2,}$/.test(value);
+  return /^[A-Za-zÅÄÖåäöÉéÜü-]{2,}( [A-ZÅÄÖ])?$/.test(value);
 }
 
 function arEttOrd_(value) {

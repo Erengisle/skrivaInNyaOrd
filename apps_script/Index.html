@@ -69,6 +69,13 @@
     }
     .ok { color: #16a34a; }
     .err { color: #dc2626; }
+    #counter {
+      margin-top: 10px;
+      text-align: center;
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #16a34a;
+    }
   </style>
 </head>
 <body>
@@ -76,7 +83,7 @@
     <h1>Svåra ord</h1>
 
     <label for="student">Ditt namn</label>
-    <input id="student" placeholder="Förnamn" autocomplete="given-name">
+    <input id="student" placeholder="Förnamn + initial (t.ex. Anna K)" autocomplete="off">
 
     <label for="word">Ord</label>
     <input id="word" placeholder="Skriv ett ord" autocomplete="off" autocorrect="off" spellcheck="false">
@@ -116,6 +123,7 @@
 
     <button id="send-btn" onclick="save()">Skicka</button>
     <div id="status"></div>
+    <div id="counter" class="hidden">✓ <span id="count">0</span> ord inskickade</div>
   </div>
 
   <script>
@@ -124,6 +132,7 @@
     const deklWrap       = document.getElementById('deklination-wrap');
     const verbGruppEl    = document.getElementById('verbgrupp');
     const deklEl         = document.getElementById('deklination');
+    let wordCount = 0;
 
     ordklassEl.addEventListener('change', () => {
       const v = ordklassEl.value;
@@ -164,8 +173,11 @@
       google.script.run
         .withSuccessHandler(res => {
           btn.disabled = false;
-          setStatus(res.message, res.ok);
           if (res.ok) {
+            wordCount++;
+            document.getElementById('count').textContent = wordCount;
+            document.getElementById('counter').classList.remove('hidden');
+            setStatus('', null);
             document.getElementById('word').value = '';
             ordklassEl.value = '';
             verbGruppEl.value = '';
@@ -173,6 +185,8 @@
             verbGruppWrap.classList.add('hidden');
             deklWrap.classList.add('hidden');
             document.getElementById('word').focus();
+          } else {
+            setStatus(res.message, false);
           }
         })
         .withFailureHandler(err => {
