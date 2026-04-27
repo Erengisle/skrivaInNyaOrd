@@ -94,7 +94,8 @@ function submitWords(payload) {
     return { ok: false, message: 'Inga giltiga ord hittades.' };
   }
 
-  const ordklass    = ['verb','substantiv','adjektiv','övrigt'].includes(payload.ordklass) ? payload.ordklass : '';
+  const ordklassRaw = ['verb','substantiv','adjektiv','övrigt'].includes(payload.ordklass) ? payload.ordklass : '';
+  const ordklass    = ordklassRaw ? ordklassRaw[0].toUpperCase() + ordklassRaw.slice(1) : '';
   const verbgrupp   = ['1','2a','2b','3','4'].includes(payload.verbgrupp) ? payload.verbgrupp : '';
   const deklination = ['1','2','3','4','5'].includes(payload.deklination) ? payload.deklination : '';
 
@@ -126,7 +127,7 @@ function uppdateraOversikt() {
     if (!arEttOrd_(word)) continue;
     freq[word] = (freq[word] || 0) + 1;
     if (!votes[word]) votes[word] = { ordklass: {}, verbgrupp: {}, deklination: {} };
-    const ok = (r[3] || '').toString().trim();
+    const ok = (r[3] || '').toString().trim().toLowerCase();
     const vg = (r[4] || '').toString().trim();
     const dk = (r[5] || '').toString().trim();
     if (ok) votes[word].ordklass[ok]    = (votes[word].ordklass[ok]    || 0) + 1;
@@ -243,7 +244,7 @@ function hamtaRöstdata_() {
     const word = (r[2] || '').toString().trim().toLowerCase();
     if (!word) continue;
     if (!votes[word]) votes[word] = { ordklass: {}, verbgrupp: {}, deklination: {} };
-    const ok = (r[3] || '').toString().trim();
+    const ok = (r[3] || '').toString().trim().toLowerCase();
     const vg = (r[4] || '').toString().trim();
     const dk = (r[5] || '').toString().trim();
     if (ok) votes[word].ordklass[ok]    = (votes[word].ordklass[ok]    || 0) + 1;
