@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<base target="_top">
+
+<style>
+  body {
+    margin: 0;
+    font-family: system-ui, sans-serif;
+    background: radial-gradient(circle at 20% 20%, #0f172a, #020617);
+    color: white;
+    padding: 20px;
+  }
+
+  h1 {
+    text-align: center;
+    margin-bottom: 24px;
+    font-size: 1.5rem;
+    color: #c7d2fe;
+  }
+
+  .track {
+    position: relative;
+    height: 56px;
+    margin-bottom: 14px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+
+  .lane {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 100%;
+  }
+
+  .rocket {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    transition: transform 0.6s ease;
+    font-size: 24px;
+  }
+
+  .label {
+    position: absolute;
+    left: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.85rem;
+    color: #cbd5f5;
+    z-index: 2;
+    background: rgba(2,6,23,0.7);
+    padding: 2px 8px;
+    border-radius: 6px;
+  }
+
+  .count {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.8rem;
+    color: #94a3b8;
+  }
+
+  .leader {
+    filter: drop-shadow(0 0 6px #60a5fa);
+  }
+
+</style>
+</head>
+
+<body>
+
+<h1>🚀 Ord-race</h1>
+
+<div id="tracks"></div>
+
+<script>
+
+function renderRockets(data) {
+  const container = document.getElementById('tracks');
+  container.innerHTML = '';
+
+  const students = Object.entries(data.perStudent)
+    .sort((a, b) => b[1] - a[1]);
+
+  if (!students.length) {
+    container.innerHTML = "<p>Inga inlämningar ännu.</p>";
+    return;
+  }
+
+  const max = students[0][1] || 1;
+
+  students.forEach(([name, count], index) => {
+
+    const track = document.createElement('div');
+    track.className = 'track';
+
+    const label = document.createElement('div');
+    label.className = 'label';
+    label.textContent = name;
+
+    const rocket = document.createElement('div');
+    rocket.className = 'rocket';
+    rocket.textContent = "🚀";
+
+    const percent = count / max;
+    const offset = percent * (track.clientWidth - 60);
+
+    // fallback if width = 0 at render
+    const px = percent * 800;
+
+    rocket.style.transform = `translate(${px}px, -50%)`;
+
+    if (index === 0) {
+      rocket.classList.add('leader');
+    }
+
+    const countLabel = document.createElement('div');
+    countLabel.className = 'count';
+    countLabel.textContent = count + " ord";
+
+    track.appendChild(label);
+    track.appendChild(rocket);
+    track.appendChild(countLabel);
+
+    container.appendChild(track);
+  });
+}
+
+
+function loadData() {
+  google.script.run
+    .withSuccessHandler(renderRockets)
+    .getDashboardData();
+}
+
+loadData();
+setInterval(loadData, 30000);
+
+</script>
+
+</body>
+</html>
