@@ -41,7 +41,12 @@ function doGet(e) {
       .setTitle('Dashboard')
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   }
-
+if (view === 'wordcount') {
+    return HtmlService
+      .createHtmlOutput(hamtaHtmlMedFallback_('wordcount-viz', fallbackInputHtml_()))
+      .setTitle('Klassens ord')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  }
   return HtmlService
     .createHtmlOutput(hamtaHtmlMedFallback_('Index', fallbackInputHtml_()))
     .setTitle('Svåra ord')
