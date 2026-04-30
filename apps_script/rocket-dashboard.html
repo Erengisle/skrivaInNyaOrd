@@ -82,6 +82,22 @@
 <div id="tracks"></div>
 
 <script>
+  let previousPositions = {};
+let previousRanks = {};
+
+const COLORS = [
+  "#60a5fa", "#f472b6", "#34d399", "#fbbf24",
+  "#a78bfa", "#fb7185", "#22d3ee", "#f97316",
+  "#4ade80", "#c084fc"
+];
+
+function getColor(name) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return COLORS[Math.abs(hash) % COLORS.length];
+}
 
 function renderRockets(data) {
   const container = document.getElementById('tracks');
@@ -105,10 +121,13 @@ function renderRockets(data) {
     const label = document.createElement('div');
     label.className = 'label';
     label.textContent = name;
+    label.style.borderLeft = `4px solid ${getColor(name)}`;
+    label.style.paddingLeft = "6px";
 
     const rocket = document.createElement('div');
     rocket.className = 'rocket';
     rocket.textContent = "🚀";
+    rocket.style.filter = `drop-shadow(0 0 8px ${getColor(name)})`;
 
     const percent = count / max;
     const offset = percent * (track.clientWidth - 60);
