@@ -116,7 +116,7 @@ function renderRockets(data) {
     // fallback if width = 0 at render
     const px = percent * 800;
 
-    rocket.style.transform = `translate(${px}px, -50%)`;
+    rocket.style.transform = `translate(${px}px, -50%) rotate(90deg)`;
 
     if (index === 0) {
       rocket.classList.add('leader');
