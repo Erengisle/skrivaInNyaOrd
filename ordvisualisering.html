@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dagen då det vände – Ord och uttryck</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #0f1117;
+    color: #e8e8f0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  header {
+    padding: 14px 28px 10px;
+    border-bottom: 1px solid #2a2a3e;
+    flex-shrink: 0;
+  }
+
+  h1 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #c8c8e0;
+    letter-spacing: 0.02em;
+  }
+
+  .subtitle {
+    font-size: 0.78rem;
+    color: #6060a0;
+    margin-top: 2px;
+  }
+
+  .tabs {
+    display: flex;
+    gap: 6px;
+    padding: 10px 28px 0;
+    flex-shrink: 0;
+  }
+
+  .tab {
+    padding: 7px 20px;
+    border-radius: 8px 8px 0 0;
+    border: none;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+    transition: all 0.15s;
+    opacity: 0.5;
+    background: transparent;
+    letter-spacing: 0.03em;
+  }
+
+  .tab:hover { opacity: 0.8; }
+  .tab.active { opacity: 1; }
+
+  .tab-alla    { color: #e8e8f0; }
+  .tab-verb    { color: #7eb8f7; }
+  .tab-subst   { color: #79d99a; }
+  .tab-adj     { color: #f5a742; }
+  .tab-ovrigt  { color: #c084fc; }
+
+  .tab.active.tab-alla   { background: #1e2030; border-bottom: 2px solid #e8e8f0; }
+  .tab.active.tab-verb   { background: #0d1a2d; border-bottom: 2px solid #7eb8f7; }
+  .tab.active.tab-subst  { background: #0d2318; border-bottom: 2px solid #79d99a; }
+  .tab.active.tab-adj    { background: #2a1a00; border-bottom: 2px solid #f5a742; }
+  .tab.active.tab-ovrigt { background: #1a0d2a; border-bottom: 2px solid #c084fc; }
+
+  .badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    background: rgba(255,255,255,0.12);
+    border-radius: 10px;
+    padding: 1px 6px;
+    margin-left: 5px;
+    vertical-align: middle;
+  }
+
+  .cloud-wrapper {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .cloud {
+    display: none;
+    width: 100%;
+    height: 100%;
+    padding: 16px 28px 12px;
+    align-content: center;
+    flex-wrap: wrap;
+    gap: 6px 12px;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .cloud.active { display: flex; }
+
+  .word {
+    display: inline-block;
+    line-height: 1.2;
+    white-space: nowrap;
+    transition: transform 0.15s, opacity 0.15s;
+    cursor: default;
+    border-radius: 4px;
+    padding: 1px 3px;
+  }
+
+  .word:hover {
+    transform: scale(1.15);
+    opacity: 1 !important;
+    z-index: 10;
+    position: relative;
+  }
+
+  /* frequency-based sizes */
+  .f6 { font-size: 2.8rem; font-weight: 800; }
+  .f5 { font-size: 2.2rem; font-weight: 800; }
+  .f4 { font-size: 1.7rem; font-weight: 700; }
+  .f3 { font-size: 1.25rem; font-weight: 600; }
+  .f2 { font-size: 0.95rem; font-weight: 500; }
+  .f1 { font-size: 0.72rem; font-weight: 400; }
+
+  /* colors per class */
+  .c-verb    { color: #7eb8f7; }
+  .c-subst   { color: #79d99a; }
+  .c-adj     { color: #f5a742; }
+  .c-ovrigt  { color: #c084fc; }
+
+  /* dim lower frequency words a bit */
+  .f1 { opacity: 0.65; }
+  .f2 { opacity: 0.8; }
+
+  .legend {
+    display: flex;
+    gap: 18px;
+    padding: 4px 28px 8px;
+    font-size: 0.72rem;
+    flex-shrink: 0;
+    border-top: 1px solid #1a1a2e;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    opacity: 0.7;
+  }
+
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  .dot-verb   { background: #7eb8f7; }
+  .dot-subst  { background: #79d99a; }
+  .dot-adj    { background: #f5a742; }
+  .dot-ovrigt { background: #c084fc; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Dagen då det vände &mdash; Ord och uttryck</h1>
+  <div class="subtitle">Elevernas inmatade ord, grupperade efter ordklass</div>
+</header>
+
+<div class="tabs">
+  <button class="tab tab-alla active" onclick="show('alla')">Alla ord <span class="badge">347</span></button>
+  <button class="tab tab-verb"   onclick="show('verb')">Verb <span class="badge">174</span></button>
+  <button class="tab tab-subst"  onclick="show('subst')">Substantiv <span class="badge">61</span></button>
+  <button class="tab tab-adj"    onclick="show('adj')">Adjektiv <span class="badge">47</span></button>
+  <button class="tab tab-ovrigt" onclick="show('ovrigt')">Övrigt <span class="badge">65</span></button>
+</div>
+
+<div class="cloud-wrapper">
+  <div class="cloud active" id="cloud-alla"></div>
+  <div class="cloud" id="cloud-verb"></div>
+  <div class="cloud" id="cloud-subst"></div>
+  <div class="cloud" id="cloud-adj"></div>
+  <div class="cloud" id="cloud-ovrigt"></div>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="dot dot-verb"></div> Verb</div>
+  <div class="legend-item"><div class="dot dot-subst"></div> Substantiv</div>
+  <div class="legend-item"><div class="dot dot-adj"></div> Adjektiv</div>
+  <div class="legend-item"><div class="dot dot-ovrigt"></div> Övrigt</div>
+  <div class="legend-item" style="margin-left:auto; opacity:0.4;">Ordstorlek = hur många elever skrev ordet</div>
+</div>
+
+<script>
+const words = [{"word":"smita","class":"verb","freq":6},{"word":"i","class":"övrigt","freq":5},{"word":"korsade","class":"verb","freq":5},{"word":"pikar","class":"substantiv","freq":5},{"word":"tragiska","class":"adjektiv","freq":5},{"word":"huttrade","class":"verb","freq":4},{"word":"livsöden","class":"substantiv","freq":4},{"word":"pension","class":"substantiv","freq":4},{"word":"satsade","class":"verb","freq":4},{"word":"sig","class":"verb","freq":4},{"word":"sneglar","class":"verb","freq":4},{"word":"svägerska","class":"substantiv","freq":4},{"word":"vågat","class":"verb","freq":4},{"word":"besviken","class":"adjektiv","freq":3},{"word":"betraktade","class":"verb","freq":3},{"word":"flåsar","class":"verb","freq":3},{"word":"glittrade","class":"verb","freq":3},{"word":"grävde","class":"verb","freq":3},{"word":"hulkade","class":"verb","freq":3},{"word":"irritation","class":"substantiv","freq":3},{"word":"kände","class":"verb","freq":3},{"word":"lättat","class":"verb","freq":3},{"word":"naiv","class":"adjektiv","freq":3},{"word":"nollställd","class":"verb","freq":3},{"word":"pockade","class":"verb","freq":3},{"word":"rofylld","class":"adjektiv","freq":3},{"word":"sjukskriven","class":"adjektiv","freq":3},{"word":"stumt","class":"övrigt","freq":3},{"word":"tid","class":"substantiv","freq":3},{"word":"tvingade","class":"verb","freq":3},{"word":"uppdrag","class":"substantiv","freq":3},{"word":"uppmuntrade","class":"verb","freq":3},{"word":"agenda","class":"adjektiv","freq":2},{"word":"alldeles","class":"övrigt","freq":2},{"word":"anklagande","class":"verb","freq":2},{"word":"besvikelse","class":"substantiv","freq":2},{"word":"enorm","class":"adjektiv","freq":2},{"word":"ensam","class":"övrigt","freq":2},{"word":"ertappad","class":"verb","freq":2},{"word":"familjebildande","class":"substantiv","freq":2},{"word":"ficktjuvad","class":"övrigt","freq":2},{"word":"frihet","class":"substantiv","freq":2},{"word":"fundera","class":"verb","freq":2},{"word":"förbi","class":"övrigt","freq":2},{"word":"förföljt","class":"verb","freq":2},{"word":"förvånat","class":"verb","freq":2},{"word":"förändra","class":"verb","freq":2},{"word":"gamla","class":"övrigt","freq":2},{"word":"gissade","class":"verb","freq":2},{"word":"gjorde","class":"verb","freq":2},{"word":"ha","class":"verb","freq":2},{"word":"handväska","class":"substantiv","freq":2},{"word":"hemmatillvaro","class":"substantiv","freq":2},{"word":"inneburit","class":"övrigt","freq":2},{"word":"intala","class":"verb","freq":2},{"word":"isande","class":"verb","freq":2},{"word":"jubel","class":"substantiv","freq":2},{"word":"kall","class":"verb","freq":2},{"word":"korsningen","class":"substantiv","freq":2},{"word":"kräva","class":"verb","freq":2},{"word":"krävande","class":"adjektiv","freq":2},{"word":"leende","class":"verb","freq":2},{"word":"makligt","class":"adjektiv","freq":2},{"word":"misstänkte","class":"verb","freq":2},{"word":"muttrade","class":"verb","freq":2},{"word":"målade","class":"verb","freq":2},{"word":"mållös","class":"övrigt","freq":2},{"word":"nickade","class":"verb","freq":2},{"word":"njuta","class":"övrigt","freq":2},{"word":"och","class":"övrigt","freq":2},{"word":"punktlig","class":"adjektiv","freq":2},{"word":"på","class":"verb","freq":2},{"word":"redo","class":"verb","freq":2},{"word":"ringa","class":"verb","freq":2},{"word":"rädd","class":"adjektiv","freq":2},{"word":"rätter","class":"substantiv","freq":2},{"word":"sen","class":"övrigt","freq":2},{"word":"sett","class":"verb","freq":2},{"word":"si","class":"övrigt","freq":2},{"word":"sjuda","class":"verb","freq":2},{"word":"sjukpensionär","class":"adjektiv","freq":2},{"word":"skulle","class":"verb","freq":2},{"word":"skämdes","class":"övrigt","freq":2},{"word":"sköra","class":"adjektiv","freq":2},{"word":"slå","class":"verb","freq":2},{"word":"sneglade","class":"verb","freq":2},{"word":"spenderade","class":"verb","freq":2},{"word":"stjäla","class":"verb","freq":2},{"word":"strax","class":"övrigt","freq":2},{"word":"stulit","class":"verb","freq":2},{"word":"städa","class":"verb","freq":2},{"word":"svulstiga","class":"adjektiv","freq":2},{"word":"så","class":"övrigt","freq":2},{"word":"såg","class":"verb","freq":2},{"word":"sällskap","class":"substantiv","freq":2},{"word":"ta","class":"verb","freq":2},{"word":"till","class":"verb","freq":2},{"word":"tog","class":"verb","freq":2},{"word":"tomt","class":"adjektiv","freq":2},{"word":"trappa","class":"verb","freq":2},{"word":"trycka","class":"verb","freq":2},{"word":"trögt","class":"adjektiv","freq":2},{"word":"trötthet","class":"substantiv","freq":2},{"word":"upp","class":"övrigt","freq":2},{"word":"uppmärksamhet","class":"övrigt","freq":2},{"word":"utbrast","class":"verb","freq":2},{"word":"utlandsplacering","class":"substantiv","freq":2},{"word":"utslitna","class":"adjektiv","freq":2},{"word":"vanligheterna","class":"adjektiv","freq":2},{"word":"verbalsubstantiv","class":"övrigt","freq":2},{"word":"väl","class":"övrigt","freq":2},{"word":"välsignelse","class":"substantiv","freq":2},{"word":"äktenskap","class":"substantiv","freq":2},{"word":"ömhet","class":"substantiv","freq":2},{"word":"acceptera","class":"verb","freq":1},{"word":"andra","class":"verb","freq":1},{"word":"arbeta","class":"verb","freq":1},{"word":"att","class":"övrigt","freq":1},{"word":"bad","class":"verb","freq":1},{"word":"bankomat","class":"substantiv","freq":1},{"word":"bekanta","class":"substantiv","freq":1},{"word":"ben","class":"adjektiv","freq":1},{"word":"beskylde","class":"verb","freq":1},{"word":"beskyllde","class":"verb","freq":1},{"word":"bestämd","class":"övrigt","freq":1},{"word":"bestämt","class":"verb","freq":1},{"word":"besökt","class":"verb","freq":1},{"word":"betrakta","class":"verb","freq":1},{"word":"bitter","class":"adjektiv","freq":1},{"word":"blev","class":"verb","freq":1},{"word":"blicken","class":"substantiv","freq":1},{"word":"blivit","class":"verb","freq":1},{"word":"blåste","class":"verb","freq":1},{"word":"bo","class":"verb","freq":1},{"word":"börja","class":"verb","freq":1},{"word":"dam","class":"substantiv","freq":1},{"word":"dansa","class":"verb","freq":1},{"word":"den","class":"verb","freq":1},{"word":"deras","class":"verb","freq":1},{"word":"dessvärre","class":"övrigt","freq":1},{"word":"detta","class":"övrigt","freq":1},{"word":"diska","class":"verb","freq":1},{"word":"diskret","class":"adjektiv","freq":1},{"word":"do","class":"verb","freq":1},{"word":"dold","class":"adjektiv","freq":1},{"word":"dricka","class":"verb","freq":1},{"word":"dykt","class":"övrigt","freq":1},{"word":"därifrån","class":"övrigt","freq":1},{"word":"dök","class":"övrigt","freq":1},{"word":"egentligen","class":"övrigt","freq":1},{"word":"emot","class":"verb","freq":1},{"word":"enkel","class":"adjektiv","freq":1},{"word":"ett","class":"substantiv","freq":1},{"word":"flängande","class":"verb","freq":1},{"word":"fortfarande","class":"övrigt","freq":1},{"word":"fram","class":"övrigt","freq":1},{"word":"framför","class":"övrigt","freq":1},{"word":"framme","class":"övrigt","freq":1},{"word":"frosten","class":"substantiv","freq":1},{"word":"fråga","class":"verb","freq":1},{"word":"fröken","class":"övrigt","freq":1},{"word":"fylla","class":"verb","freq":1},{"word":"får","class":"verb","freq":1},{"word":"fått","class":"verb","freq":1},{"word":"fönstren","class":"substantiv","freq":1},{"word":"för","class":"substantiv","freq":1},{"word":"förlorad","class":"övrigt","freq":1},{"word":"förlöra","class":"verb","freq":1},{"word":"förra","class":"övrigt","freq":1},{"word":"förrädisk","class":"adjektiv","freq":1},{"word":"försent","class":"övrigt","freq":1},{"word":"första","class":"verb","freq":1},{"word":"förstrött","class":"adjektiv","freq":1},{"word":"förstört","class":"verb","freq":1},{"word":"försvarslös","class":"adjektiv","freq":1},{"word":"förtidspensionerad","class":"övrigt","freq":1},{"word":"förtidspensionär","class":"substantiv","freq":1},{"word":"förtvivlad","class":"övrigt","freq":1},{"word":"förut","class":"övrigt","freq":1},{"word":"gator","class":"substantiv","freq":1},{"word":"ge","class":"verb","freq":1},{"word":"glömt","class":"verb","freq":1},{"word":"gnatiga","class":"adjektiv","freq":1},{"word":"gråta","class":"verb","freq":1},{"word":"gå","class":"verb","freq":1},{"word":"gående","class":"övrigt","freq":1},{"word":"göra","class":"verb","freq":1},{"word":"haft","class":"verb","freq":1},{"word":"halt","class":"adjektiv","freq":1},{"word":"handlat","class":"verb","freq":1},{"word":"hemska","class":"adjektiv","freq":1},{"word":"himla","class":"adjektiv","freq":1},{"word":"hjärtinfarkt","class":"substantiv","freq":1},{"word":"hobby","class":"substantiv","freq":1},{"word":"hoppa","class":"verb","freq":1},{"word":"hundar","class":"övrigt","freq":1},{"word":"håll","class":"övrigt","freq":1},{"word":"händerna","class":"verb","freq":1},{"word":"hänt","class":"övrigt","freq":1},{"word":"höll","class":"verb","freq":1},{"word":"hörde","class":"verb","freq":1},{"word":"igen","class":"verb","freq":1},{"word":"ilsket","class":"adjektiv","freq":1},{"word":"impressionistisk","class":"adjektiv","freq":1},{"word":"ingenstans","class":"övrigt","freq":1},{"word":"innan","class":"övrigt","freq":1},{"word":"irreterad","class":"adjektiv","freq":1},{"word":"issande","class":"adjektiv","freq":1},{"word":"ju","class":"adjektiv","freq":1},{"word":"julhandlat","class":"verb","freq":1},{"word":"julskylta","class":"verb","freq":1},{"word":"jämt","class":"övrigt","freq":1},{"word":"klacken","class":"substantiv","freq":1},{"word":"klart","class":"verb","freq":1},{"word":"klippa","class":"verb","freq":1},{"word":"klä","class":"verb","freq":1},{"word":"knän","class":"substantiv","freq":1},{"word":"kokerska","class":"substantiv","freq":1},{"word":"komma","class":"verb","freq":1},{"word":"konstaterade","class":"verb","freq":1},{"word":"konversationen","class":"substantiv","freq":1},{"word":"kram","class":"substantiv","freq":1},{"word":"kylan","class":"substantiv","freq":1},{"word":"leta","class":"verb","freq":1},{"word":"leva","class":"verb","freq":1},{"word":"linje","class":"övrigt","freq":1},{"word":"litet","class":"adjektiv","freq":1},{"word":"log","class":"övrigt","freq":1},{"word":"låg","class":"verb","freq":1},{"word":"lämna","class":"verb","freq":1},{"word":"längesen","class":"substantiv","freq":1},{"word":"lära","class":"övrigt","freq":1},{"word":"läsa","class":"verb","freq":1},{"word":"med","class":"övrigt","freq":1},{"word":"medlen","class":"substantiv","freq":1},{"word":"minuten","class":"övrigt","freq":1},{"word":"måla","class":"verb","freq":1},{"word":"naivistiska","class":"adjektiv","freq":1},{"word":"ner","class":"övrigt","freq":1},{"word":"oförstående","class":"adjektiv","freq":1},{"word":"ointressant","class":"adjektiv","freq":1},{"word":"omkring","class":"övrigt","freq":1},{"word":"passa","class":"verb","freq":1},{"word":"plötsigt","class":"övrigt","freq":1},{"word":"plötsligt","class":"adjektiv","freq":1},{"word":"pocka","class":"verb","freq":1},{"word":"polisanmälan","class":"substantiv","freq":1},{"word":"prata","class":"verb","freq":1},{"word":"prov","class":"verb","freq":1},{"word":"redan","class":"verb","freq":1},{"word":"reportageserie","class":"substantiv","freq":1},{"word":"resorna","class":"substantiv","freq":1},{"word":"respekterade","class":"verb","freq":1},{"word":"respektlöshet","class":"substantiv","freq":1},{"word":"revisionsbyråerna","class":"substantiv","freq":1},{"word":"rita","class":"verb","freq":1},{"word":"ro","class":"övrigt","freq":1},{"word":"rygg","class":"substantiv","freq":1},{"word":"rynkade","class":"verb","freq":1},{"word":"räckte","class":"verb","freq":1},{"word":"rätt","class":"adjektiv","freq":1},{"word":"sakta","class":"adjektiv","freq":1},{"word":"samhet","class":"substantiv","freq":1},{"word":"separerade","class":"verb","freq":1},{"word":"sin","class":"verb","freq":1},{"word":"sitt","class":"verb","freq":1},{"word":"sitta","class":"övrigt","freq":1},{"word":"sjunga","class":"verb","freq":1},{"word":"skolmatsbespisning","class":"substantiv","freq":1},{"word":"skrev","class":"verb","freq":1},{"word":"skriva","class":"verb","freq":1},{"word":"skräta","class":"verb","freq":1},{"word":"skylt","class":"substantiv","freq":1},{"word":"skyltfonstren","class":"substantiv","freq":1},{"word":"skyndade","class":"verb","freq":1},{"word":"skänkt","class":"verb","freq":1},{"word":"skänt","class":"verb","freq":1},{"word":"slitel","class":"verb","freq":1},{"word":"sluta","class":"verb","freq":1},{"word":"släppa","class":"verb","freq":1},{"word":"småspringa","class":"verb","freq":1},{"word":"somnade","class":"verb","freq":1},{"word":"sova","class":"verb","freq":1},{"word":"spela","class":"verb","freq":1},{"word":"spenderande","class":"verb","freq":1},{"word":"spenderas","class":"verb","freq":1},{"word":"sprang","class":"verb","freq":1},{"word":"steg","class":"verb","freq":1},{"word":"stod","class":"verb","freq":1},{"word":"stolt","class":"adjektiv","freq":1},{"word":"stoppa","class":"verb","freq":1},{"word":"stor","class":"adjektiv","freq":1},{"word":"stygn","class":"substantiv","freq":1},{"word":"stäng","class":"verb","freq":1},{"word":"substantiv","class":"övrigt","freq":1},{"word":"svara","class":"verb","freq":1},{"word":"sådant","class":"övrigt","freq":1},{"word":"säga","class":"verb","freq":1},{"word":"sökte","class":"verb","freq":1},{"word":"tagit","class":"verb","freq":1},{"word":"tankar","class":"verb","freq":1},{"word":"tankfullt","class":"övrigt","freq":1},{"word":"tappade","class":"verb","freq":1},{"word":"tavlor","class":"substantiv","freq":1},{"word":"tider","class":"verb","freq":1},{"word":"tillfället","class":"substantiv","freq":1},{"word":"tittade","class":"verb","freq":1},{"word":"torra","class":"adjektiv","freq":1},{"word":"tro","class":"verb","freq":1},{"word":"tror","class":"verb","freq":1},{"word":"trots","class":"övrigt","freq":1},{"word":"träffa","class":"verb","freq":1},{"word":"tugga","class":"verb","freq":1},{"word":"tuggade","class":"verb","freq":1},{"word":"tveksamt","class":"övrigt","freq":1},{"word":"tvingar","class":"verb","freq":1},{"word":"tvättta","class":"verb","freq":1},{"word":"tyckte","class":"verb","freq":1},{"word":"tänkte","class":"verb","freq":1},{"word":"undan","class":"övrigt","freq":1},{"word":"uppbrottet","class":"substantiv","freq":1},{"word":"uppbtottet","class":"substantiv","freq":1},{"word":"uppmärksammade","class":"verb","freq":1},{"word":"ut","class":"övrigt","freq":1},{"word":"utläggningen","class":"substantiv","freq":1},{"word":"vakna","class":"verb","freq":1},{"word":"vaknade","class":"verb","freq":1},{"word":"vara","class":"verb","freq":1},{"word":"varit","class":"verb","freq":1},{"word":"verkade","class":"verb","freq":1},{"word":"vill","class":"verb","freq":1},{"word":"ville","class":"verb","freq":1},{"word":"vinna","class":"verb","freq":1},{"word":"viska","class":"verb","freq":1},{"word":"visste","class":"verb","freq":1},{"word":"väg","class":"substantiv","freq":1},{"word":"välja","class":"verb","freq":1},{"word":"väninnor","class":"substantiv","freq":1},{"word":"värdefulla","class":"adjektiv","freq":1},{"word":"yrkesverksamma","class":"adjektiv","freq":1},{"word":"åkt","class":"verb","freq":1},{"word":"ända","class":"övrigt","freq":1},{"word":"ärende","class":"substantiv","freq":1},{"word":"äta","class":"verb","freq":1},{"word":"öforstående","class":"övrigt","freq":1},{"word":"ögonbrynen","class":"verb","freq":1},{"word":"övergångs","class":"substantiv","freq":1}];
+
+const classMap = {
+  'verb':      { key: 'verb',   colorClass: 'c-verb' },
+  'substantiv':{ key: 'subst',  colorClass: 'c-subst' },
+  'adjektiv':  { key: 'adj',    colorClass: 'c-adj' },
+  'övrigt':    { key: 'ovrigt', colorClass: 'c-ovrigt' },
+};
+
+function freqClass(f) {
+  if (f >= 6) return 'f6';
+  if (f >= 5) return 'f5';
+  if (f >= 4) return 'f4';
+  if (f >= 3) return 'f3';
+  if (f >= 2) return 'f2';
+  return 'f1';
+}
+
+function buildCloud(containerId, filterClass) {
+  const el = document.getElementById(containerId);
+  const filtered = filterClass === 'alla'
+    ? [...words].sort((a, b) => b.freq - a.freq)
+    : words.filter(w => {
+        const m = classMap[w.class];
+        return m && m.key === filterClass;
+      }).sort((a, b) => b.freq - a.freq);
+
+  el.innerHTML = '';
+  filtered.forEach(w => {
+    const m = classMap[w.class] || { colorClass: 'c-ovrigt' };
+    const span = document.createElement('span');
+    span.className = `word ${freqClass(w.freq)} ${m.colorClass}`;
+    span.textContent = w.word;
+    span.title = `${w.word} · ${w.class} · nämndes ${w.freq} gång${w.freq > 1 ? 'er' : ''}`;
+    el.appendChild(span);
+  });
+}
+
+buildCloud('cloud-alla',   'alla');
+buildCloud('cloud-verb',   'verb');
+buildCloud('cloud-subst',  'subst');
+buildCloud('cloud-adj',    'adj');
+buildCloud('cloud-ovrigt', 'ovrigt');
+
+function show(tab) {
+  document.querySelectorAll('.cloud').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('cloud-' + tab).classList.add('active');
+  document.querySelector('.tab-' + (tab === 'subst' ? 'subst' : tab)).classList.add('active');
+}
+
+// keyboard shortcuts: 1–5 to switch tabs
+document.addEventListener('keydown', e => {
+  const map = { '1': 'alla', '2': 'verb', '3': 'subst', '4': 'adj', '5': 'ovrigt' };
+  if (map[e.key]) show(map[e.key]);
+});
+</script>
+</body>
+</html>
