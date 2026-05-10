@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tvetydiga ordklasser – Dagen då det vände</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #0f1117;
+    color: #e8e8f0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  header {
+    padding: 12px 24px 8px;
+    border-bottom: 1px solid #2a2a3e;
+    flex-shrink: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+  }
+
+  h1 {
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: #c8c8e0;
+  }
+
+  .subtitle {
+    font-size: 0.78rem;
+    color: #5050a0;
+  }
+
+  .controls {
+    margin-left: auto;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .toggle-btn {
+    background: #1e2030;
+    border: 1px solid #3a3a5e;
+    color: #9090c0;
+    padding: 4px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    transition: all 0.15s;
+  }
+  .toggle-btn:hover { background: #252540; color: #c0c0e0; }
+  .toggle-btn.on { background: #2a2a50; border-color: #6060c0; color: #a0a0f0; }
+
+  .grid {
+    flex: 1;
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 8px;
+    padding: 12px 20px;
+    align-content: start;
+  }
+
+  .card {
+    background: #15161f;
+    border: 1px solid #1e2030;
+    border-radius: 10px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    transition: border-color 0.15s, transform 0.15s;
+  }
+
+  .card:hover {
+    border-color: #3a3a6e;
+    transform: translateY(-2px);
+  }
+
+  .card.triple {
+    border-color: #ff6b6b44;
+    background: #1f1218;
+  }
+  .card.triple:hover { border-color: #ff6b6baa; }
+
+  .word-text {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #e0e0f8;
+    letter-spacing: 0.01em;
+    line-height: 1.2;
+  }
+
+  .triple .word-text {
+    color: #ffb3b3;
+  }
+
+  .classes {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .class-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-wrap: wrap;
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    flex-shrink: 0;
+  }
+
+  .b-verb    { background: #0d2040; color: #7eb8f7; border: 1px solid #1d4070; }
+  .b-subst   { background: #0d2318; color: #79d99a; border: 1px solid #1d5030; }
+  .b-adj     { background: #2a1a00; color: #f5a742; border: 1px solid #5a3a00; }
+  .b-ovrigt  { background: #1a0d2a; color: #c084fc; border: 1px solid #3a1a5a; }
+
+  .elever {
+    font-size: 0.62rem;
+    color: #5a5a80;
+    display: none;
+    flex-wrap: wrap;
+    gap: 3px;
+  }
+  .elever.visible { display: flex; }
+
+  .elev-chip {
+    background: #1a1a2a;
+    border-radius: 4px;
+    padding: 1px 5px;
+    color: #7070a0;
+  }
+
+  .legend {
+    display: flex;
+    gap: 14px;
+    padding: 4px 20px 7px;
+    font-size: 0.7rem;
+    flex-shrink: 0;
+    border-top: 1px solid #1a1a2e;
+    align-items: center;
+  }
+
+  .legend-item { display: flex; align-items: center; gap: 5px; opacity: 0.7; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .dot-verb   { background: #7eb8f7; }
+  .dot-subst  { background: #79d99a; }
+  .dot-adj    { background: #f5a742; }
+  .dot-ovrigt { background: #c084fc; }
+
+  .triple-marker {
+    font-size: 0.6rem;
+    background: #ff6b6b22;
+    color: #ff8080;
+    border: 1px solid #ff6b6b44;
+    border-radius: 4px;
+    padding: 1px 5px;
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+
+  .count-badge {
+    margin-left: auto;
+    font-size: 0.68rem;
+    color: #4040a0;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Tvetydiga ordklasser</h1>
+  <div class="subtitle">34 ord där eleverna angav olika ordklass</div>
+  <div class="controls">
+    <button class="toggle-btn" id="elev-toggle" onclick="toggleElever()">Visa elever</button>
+  </div>
+</header>
+
+<div class="grid" id="grid"></div>
+
+<div class="legend">
+  <div class="legend-item"><div class="dot dot-verb"></div> Verb</div>
+  <div class="legend-item"><div class="dot dot-subst"></div> Substantiv</div>
+  <div class="legend-item"><div class="dot dot-adj"></div> Adjektiv</div>
+  <div class="legend-item"><div class="dot dot-ovrigt"></div> Övrigt</div>
+  <span style="margin-left:auto;font-size:0.65rem;color:#ff8080;opacity:0.6;">★ = tre olika ordklasser angivna</span>
+</div>
+
+<script>
+const data = [{"word":"svägerska","conflicts":[{"klass":"adjektiv","elever":["Faria"]},{"klass":"substantiv","elever":["AndriiL"]},{"klass":"verb","elever":["Yurii"]}]},{"word":"anklagande","conflicts":[{"klass":"adjektiv","elever":["Susan"]},{"klass":"verb","elever":["Susan"]}]},{"word":"ensam","conflicts":[{"klass":"adjektiv","elever":["Phairin"]},{"klass":"övrigt","elever":["andriib"]}]},{"word":"familjebildande","conflicts":[{"klass":"adjektiv","elever":["Susan"]},{"klass":"substantiv","elever":["Phairin"]}]},{"word":"ficktjuvad","conflicts":[{"klass":"adjektiv","elever":["Phairin"]},{"klass":"övrigt","elever":["Susan"]}]},{"word":"gamla","conflicts":[{"klass":"adjektiv","elever":["Andriib"]},{"klass":"övrigt","elever":["AndriiL"]}]},{"word":"i","conflicts":[{"klass":"adjektiv","elever":["Yurii"]},{"klass":"övrigt","elever":["Andriib"]}]},{"word":"inneburit","conflicts":[{"klass":"verb","elever":["AndriiL"]},{"klass":"övrigt","elever":["AndriiL"]}]},{"word":"leende","conflicts":[{"klass":"verb","elever":["AndriiL"]},{"klass":"övrigt","elever":["Andriib"]}]},{"word":"makligt","conflicts":[{"klass":"adjektiv","elever":["Faria"]},{"klass":"övrigt","elever":["Andriib"]}]},{"word":"mållös","conflicts":[{"klass":"adjektiv","elever":["AndriiL"]},{"klass":"övrigt","elever":["Yurii"]}]},{"word":"naiv","conflicts":[{"klass":"adjektiv","elever":["Susan"]},{"klass":"substantiv","elever":["Faria"]}]},{"word":"njuta","conflicts":[{"klass":"verb","elever":["Faria"]},{"klass":"övrigt","elever":["Kawsar"]}]},{"word":"nollställd","conflicts":[{"klass":"verb","elever":["Andriib"]},{"klass":"övrigt","elever":["AndriiL"]}]},{"word":"och","conflicts":[{"klass":"verb","elever":["Susan"]},{"klass":"övrigt","elever":["Yurii"]}]},{"word":"pikar","conflicts":[{"klass":"substantiv","elever":["Faria"]},{"klass":"verb","elever":["AndriiL"]}]},{"word":"på","conflicts":[{"klass":"verb","elever":["Faria"]},{"klass":"övrigt","elever":["Andriib"]}]},{"word":"redo","conflicts":[{"klass":"adjektiv","elever":["Susan"]},{"klass":"verb","elever":["Kawsar"]}]},{"word":"rofylld","conflicts":[{"klass":"adjektiv","elever":["Susan"]},{"klass":"övrigt","elever":["Faria"]}]},{"word":"rädd","conflicts":[{"klass":"adjektiv","elever":["Andriib"]},{"klass":"verb","elever":["AndriiL"]}]},{"word":"sen","conflicts":[{"klass":"verb","elever":["AndriiL"]},{"klass":"övrigt","elever":["susan"]}]},{"word":"si","conflicts":[{"klass":"verb","elever":["Faria"]},{"klass":"övrigt","elever":["Yurii"]}]},{"word":"sig","conflicts":[{"klass":"verb","elever":["AndriiL"]},{"klass":"övrigt","elever":["Andriib"]}]},{"word":"sjukpensionär","conflicts":[{"klass":"adjektiv","elever":["AndriiL"]},{"klass":"substantiv","elever":["Faria"]}]},{"word":"skämdes","conflicts":[{"klass":"verb","elever":["Andriib"]},{"klass":"övrigt","elever":["Faria"]}]},{"word":"slå","conflicts":[{"klass":"verb","elever":["Faria"]},{"klass":"övrigt","elever":["AndriiL"]}]},{"word":"smita","conflicts":[{"klass":"verb","elever":["susan"]},{"klass":"övrigt","elever":["Faria"]}]},{"word":"stumt","conflicts":[{"klass":"adjektiv","elever":["AndriiL"]},{"klass":"övrigt","elever":["Faria"]}]},{"word":"så","conflicts":[{"klass":"verb","elever":["Andriib"]},{"klass":"övrigt","elever":["Yurii"]}]},{"word":"trappa","conflicts":[{"klass":"verb","elever":["Andriib"]},{"klass":"övrigt","elever":["AndriiL"]}]},{"word":"uppmärksamhet","conflicts":[{"klass":"substantiv","elever":["Yurii"]},{"klass":"övrigt","elever":["Yurii"]}]},{"word":"utslitna","conflicts":[{"klass":"adjektiv","elever":["Yurii"]},{"klass":"övrigt","elever":["Yurii"]}]},{"word":"vanligheterna","conflicts":[{"klass":"adjektiv","elever":["Yurii"]},{"klass":"substantiv","elever":["Yurii"]}]},{"word":"vågat","conflicts":[{"klass":"verb","elever":["Yurii"]},{"klass":"övrigt","elever":["Yurii"]}]}];
+
+const colorMap = {
+  'verb':      'b-verb',
+  'substantiv':'b-subst',
+  'adjektiv':  'b-adj',
+  'övrigt':    'b-ovrigt',
+};
+
+const labelMap = {
+  'verb':      'Verb',
+  'substantiv':'Subst.',
+  'adjektiv':  'Adj.',
+  'övrigt':    'Övrigt',
+};
+
+let elevVisible = false;
+
+function toggleElever() {
+  elevVisible = !elevVisible;
+  document.querySelectorAll('.elever').forEach(el => {
+    el.classList.toggle('visible', elevVisible);
+  });
+  const btn = document.getElementById('elev-toggle');
+  btn.classList.toggle('on', elevVisible);
+  btn.textContent = elevVisible ? 'Dölj elever' : 'Visa elever';
+}
+
+const grid = document.getElementById('grid');
+
+data.forEach(item => {
+  const isTriple = item.conflicts.length >= 3;
+  const card = document.createElement('div');
+  card.className = 'card' + (isTriple ? ' triple' : '');
+
+  const wordLine = document.createElement('div');
+  wordLine.style.display = 'flex';
+  wordLine.style.alignItems = 'center';
+
+  const wordEl = document.createElement('div');
+  wordEl.className = 'word-text';
+  wordEl.textContent = item.word;
+  wordLine.appendChild(wordEl);
+
+  if (isTriple) {
+    const marker = document.createElement('span');
+    marker.className = 'triple-marker';
+    marker.textContent = '★ tre';
+    wordLine.appendChild(marker);
+  }
+
+  card.appendChild(wordLine);
+
+  const classes = document.createElement('div');
+  classes.className = 'classes';
+
+  item.conflicts.forEach(c => {
+    const row = document.createElement('div');
+    row.className = 'class-row';
+
+    const badge = document.createElement('span');
+    badge.className = 'badge ' + (colorMap[c.klass] || 'b-ovrigt');
+    badge.textContent = labelMap[c.klass] || c.klass;
+    row.appendChild(badge);
+
+    const elevDiv = document.createElement('div');
+    elevDiv.className = 'elever';
+    c.elever.forEach(e => {
+      const chip = document.createElement('span');
+      chip.className = 'elev-chip';
+      chip.textContent = e;
+      elevDiv.appendChild(chip);
+    });
+    row.appendChild(elevDiv);
+
+    classes.appendChild(row);
+  });
+
+  card.appendChild(classes);
+  grid.appendChild(card);
+});
+
+// keyboard: E = toggle elever, Escape = reset
+document.addEventListener('keydown', e => {
+  if (e.key === 'e' || e.key === 'E') toggleElever();
+});
+</script>
+</body>
+</html>
