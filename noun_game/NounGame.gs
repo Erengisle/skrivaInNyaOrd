@@ -102,6 +102,7 @@ function onOpen() {
     .addItem('Importera från Ordbank (Dokument 1)', 'importeraFranOrdbank')
     .addSeparator()
     .addItem('Berika med genus via SALDO',          'berikaMedSaldoGenus')
+    .addItem('Korrigera genus mot saldo_paradigm',  'korrigeraGenusMotParadigm')
     .addItem('Testa SALDO för ett ord',             'testSaldoOrd')
     .addToUi();
 }
@@ -418,5 +419,68 @@ function berikaMedSaldoGenus() {
   SpreadsheetApp.getActive().toast(
     'Genus ifyllt: ' + uppdaterade + '   Ej hittade / okänt genus: ' + ejHittade,
     'SALDO-berikning klar', 8
+  );
+}
+
+// ─── Korrigering ───────────────────────────────────────────────────────────────
+
+/**
+ * Korrigerar genus för alla rader där saldo_paradigm redan är ifyllt.
+ * Inga API-anrop — använder bara den befintliga paradigmkoden.
+ * Skriver över felaktigt genus och fyller i genus som saknas.
+ */
+function korrigeraGenusMotParadigm() {
+  var ss    = SpreadsheetApp.getActive();
+  var sheet = ss.getSheetByName('Ordlista');
+  if (!sheet || sheet.getLastRow() < 2) {
+    SpreadsheetApp.getUi().alert('Ordlistan är tom.');
+    return;
+  }
+
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
+    .map(function(h) { return h.toString().toLowerCase(); });
+
+  var ordIdx      = headers.indexOf('ord');
+  var genusIdx    = headers.indexOf('genus');
+  var paradigmIdx = headers.indexOf('saldo_paradigm');
+  var deklIdx     = headers.indexOf('deklination');
+
+  if (genusIdx < 0 || paradigmIdx < 0) {
+    SpreadsheetApp.getUi().alert('Saknar kolumnerna "genus" eller "saldo_paradigm".');
+    return;
+  }
+
+  var lastRow = sheet.getLastRow();
+  var data    = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
+
+  var rattade = 0, ifyllda = 0, oforändrade = 0;
+
+  for (var i = 0; i < data.length; i++) {
+    var paradigm = (data[i][paradigmIdx] || '').toString().trim();
+    if (!paradigm || paradigm.indexOf('nn_') !== 0) continue;
+
+    var korrekt = tolkaSaldoGenus_(paradigm);
+    if (!korrekt) continue;
+
+    var harGenus = (data[i][genusIdx] || '').toString().trim().toLowerCase();
+    var row      = i + 2;
+
+    if (harGenus === korrekt) {
+      oforändrade++;
+    } else {
+      sheet.getRange(row, genusIdx + 1).setValue(korrekt);
+      if (deklIdx >= 0 && !data[i][deklIdx]) {
+        sheet.getRange(row, deklIdx + 1).setValue(tolkaSaldoDeklination_(paradigm));
+      }
+      if (!harGenus) ifyllda++;
+      else           rattade++;
+    }
+  }
+
+  SpreadsheetApp.getActive().toast(
+    'Rättade: ' + rattade +
+    '   Ifyllda (saknades): ' + ifyllda +
+    '   Redan korrekta: ' + oforändrade,
+    'Korrigering klar', 10
   );
 }
