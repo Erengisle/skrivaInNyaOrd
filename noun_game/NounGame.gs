@@ -101,9 +101,12 @@ function onOpen() {
     .addItem('Importera från Kelly-listan',         'importeraFranKelly')
     .addItem('Importera från Ordbank (Dokument 1)', 'importeraFranOrdbank')
     .addSeparator()
-    .addItem('Berika med genus via SALDO',          'berikaMedSaldoGenus')
-    .addItem('Korrigera genus mot saldo_paradigm',  'korrigeraGenusMotParadigm')
-    .addItem('Testa SALDO för ett ord',             'testSaldoOrd')
+    .addItem('Berika med genus via SALDO',                    'berikaMedSaldoGenus')
+    .addItem('Korrigera genus mot saldo_paradigm',            'korrigeraGenusMotParadigm')
+    .addSeparator()
+    .addItem('1. Fyll deklination från befintligt paradigm',  'fyllDeklinationFranParadigm')
+    .addItem('2. Hämta paradigm + deklination via SALDO',     'hamtaParadigmViaSaldo')
+    .addItem('Testa SALDO för ett ord',                       'testSaldoOrd')
     .addToUi();
 }
 
@@ -482,5 +485,139 @@ function korrigeraGenusMotParadigm() {
     '   Ifyllda (saknades): ' + ifyllda +
     '   Redan korrekta: ' + oforändrade,
     'Korrigering klar', 10
+  );
+}
+
+// ─── Deklination steg 1 ────────────────────────────────────────────────────────
+
+/**
+ * STEG 1 — Snabb, inga API-anrop.
+ * Fyller kolumnen "deklination" för alla rader som redan har saldo_paradigm.
+ * Skriver INTE över deklination som redan är ifylld.
+ * Kör detta innan steg 2.
+ */
+function fyllDeklinationFranParadigm() {
+  var ss    = SpreadsheetApp.getActive();
+  var sheet = ss.getSheetByName('Ordlista');
+  if (!sheet || sheet.getLastRow() < 2) {
+    SpreadsheetApp.getUi().alert('Ordlistan är tom.');
+    return;
+  }
+
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
+    .map(function(h) { return h.toString().toLowerCase(); });
+
+  var paradigmIdx = headers.indexOf('saldo_paradigm');
+  var deklIdx     = headers.indexOf('deklination');
+
+  if (paradigmIdx < 0 || deklIdx < 0) {
+    SpreadsheetApp.getUi().alert('Saknar kolumnerna "saldo_paradigm" eller "deklination".');
+    return;
+  }
+
+  var lastRow = sheet.getLastRow();
+  var data    = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
+
+  var ifyllda = 0, redan = 0, ingenParadigm = 0;
+
+  for (var i = 0; i < data.length; i++) {
+    var paradigm = (data[i][paradigmIdx] || '').toString().trim();
+    var harDekl  = (data[i][deklIdx]     || '').toString().trim();
+
+    if (!paradigm || paradigm.indexOf('nn_') !== 0) { ingenParadigm++; continue; }
+    if (harDekl) { redan++; continue; }
+
+    var dekl = tolkaSaldoDeklination_(paradigm);
+    if (dekl) {
+      sheet.getRange(i + 2, deklIdx + 1).setValue(dekl);
+      ifyllda++;
+    }
+  }
+
+  SpreadsheetApp.getActive().toast(
+    'Ifyllda nu: ' + ifyllda +
+    '   Redan ifyllda: ' + redan +
+    '   Saknar paradigm (kör steg 2): ' + ingenParadigm,
+    'Steg 1 klart', 10
+  );
+}
+
+// ─── Deklination steg 2 ────────────────────────────────────────────────────────
+
+/**
+ * STEG 2 — Långsam, gör API-anrop mot SALDO.
+ * Hämtar saldo_paradigm för alla ord som saknar det, fyller sedan deklination.
+ * Hoppar automatiskt över ord som redan har paradigm (dvs. de som steg 1 täckte).
+ * Kör alltid steg 1 INNAN detta.
+ *
+ * Tid: ca 200 ms per ord × antal ord utan paradigm ≈ 10–15 minuter.
+ * Håll fliken öppen tills "Steg 2 klart"-meddelandet visas.
+ */
+function hamtaParadigmViaSaldo() {
+  var ss    = SpreadsheetApp.getActive();
+  var sheet = ss.getSheetByName('Ordlista');
+  if (!sheet || sheet.getLastRow() < 2) {
+    SpreadsheetApp.getUi().alert('Ordlistan är tom.');
+    return;
+  }
+
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
+    .map(function(h) { return h.toString().toLowerCase(); });
+
+  var ordIdx      = headers.indexOf('ord');
+  var genusIdx    = headers.indexOf('genus');
+  var paradigmIdx = headers.indexOf('saldo_paradigm');
+  var deklIdx     = headers.indexOf('deklination');
+
+  if (ordIdx < 0 || paradigmIdx < 0 || deklIdx < 0) {
+    SpreadsheetApp.getUi().alert('Saknar nödvändiga kolumner (ord / saldo_paradigm / deklination).');
+    return;
+  }
+
+  var lastRow = sheet.getLastRow();
+  var data    = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
+
+  var ifyllda = 0, ejHittade = 0, hoppade = 0;
+
+  for (var i = 0; i < data.length; i++) {
+    var paradigm = (data[i][paradigmIdx] || '').toString().trim();
+    if (paradigm) { hoppade++; continue; } // redan klar från steg 1
+
+    var ord = (data[i][ordIdx] || '').toString().trim().toLowerCase();
+    if (!ord) continue;
+
+    if (i % 20 === 0) {
+      SpreadsheetApp.getActive().toast(
+        'Bearbetar rad ' + (i + 2) + ' av ' + lastRow + '…',
+        'Steg 2 – SALDO', 3
+      );
+    }
+    Utilities.sleep(200);
+
+    var res = saldoSlaSuppOrd_(ord);
+
+    if (res.hittad && res.ordklass === 'substantiv') {
+      var dekl = tolkaSaldoDeklination_(res.paradigm);
+      sheet.getRange(i + 2, paradigmIdx + 1).setValue(res.paradigm);
+      if (dekl) sheet.getRange(i + 2, deklIdx + 1).setValue(dekl);
+
+      // Korrigera genus om paradigmet säger något annat
+      var korrektGenus = tolkaSaldoGenus_(res.paradigm);
+      var harGenus     = (data[i][genusIdx] || '').toString().trim().toLowerCase();
+      if (korrektGenus && harGenus !== korrektGenus) {
+        sheet.getRange(i + 2, genusIdx + 1).setValue(korrektGenus);
+      }
+
+      ifyllda++;
+    } else {
+      ejHittade++;
+    }
+  }
+
+  SpreadsheetApp.getActive().toast(
+    'Paradigm + deklination ifyllt: ' + ifyllda +
+    '   Hoppade över (redan klara): ' + hoppade +
+    '   Ej hittade i SALDO: ' + ejHittade,
+    'Steg 2 klart', 15
   );
 }
